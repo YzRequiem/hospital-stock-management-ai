@@ -1,0 +1,35 @@
+{
+  "produit": "Poulet frais",
+  "date_analyse": "2025-11-12 10:47:13",
+  "periode_historique": {
+    "debut": "2022-01-01",
+    "fin": "2024-12-31",
+    "nb_jours": 1096
+  },
+  "statistiques": {
+    "consommation_moyenne_jour": 11.38,
+    "duree_vie_moyenne": 2.0,
+    "ecart_type": 3.27
+  },
+  "performance_modele": {
+    "MAE": 2.24,
+    "MAPE": 28.35,
+    "methode": "Prophet"
+  },
+  "predictions": {
+    "horizon": "4 semaines (28 jours)",
+    "total_prevu": 318.58,
+    "moyenne_jour": 11.38,
+    "minimum": 9.16,
+    "maximum": 12.41
+  },
+  "recommandations": {
+    "stock_actuel": 9076.23,
+    "horizon_commande_jours": 1,
+    "commande_suggeree": 0,
+    "commande_min": 0,
+    "commande_max": 0,
+    "duree_stock_actuel_jours": 797.7,
+    "risque_gaspillage_kg": 9053.48
+  }
+}
