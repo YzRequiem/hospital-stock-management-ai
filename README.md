@@ -16,13 +16,20 @@ Ce projet utilise des techniques d'intelligence artificielle et d'apprentissage 
 ```
 final-project/
 ├── data/
-│   └── dataset_stock_hopital.csv          # Données sources (3 ans de transactions)
+│   ├── dataset_stock_hopital.csv          # Dataset de base (3 ans)
+│   ├── dataset_stock_hopital_REALISTE.csv # Dataset avec FIFO
+│   ├── dataset_stock_hopital_ENRICHI.csv  # ⭐ Dataset enrichi (5 ans + regressors)
+│   ├── README_DATASETS.md                 # Comparaison des datasets
+│   └── GUIDE_DATASET_ENRICHI.md          # Guide d'utilisation complet
 ├── notebooks/
-│   └── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb  # Notebook principal d'analyse
-├── results/                               # Résultats des analyses
+│   ├── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb  # Notebook principal
+│   ├── results_manager.py                    # Gestionnaire de résultats
+│   └── EXEMPLE_UTILISATION.md               # Guide du results manager
+├── results/                               # Résultats automatiques
 │   └── [YYYYMMDD_HHMMSS]/               # Un dossier par exécution
 │       ├── predictions_*.csv
 │       ├── summary_*.json
+│       ├── README.txt                   # Résumé auto
 │       └── graphs/
 │           └── *.png
 ├── .gitignore
@@ -32,11 +39,31 @@ final-project/
 
 ## Données
 
-Le dataset contient 51 839 transactions sur 3 ans (2022-2024) incluant :
-- 40 produits distincts
-- 12 fournisseurs
-- Types d'opérations : ARRIVAGE et SORTIE
-- Informations : quantités, stock théorique, température, dates d'expiration
+### 3 Datasets disponibles
+
+Le projet inclut **3 versions** du dataset, chacune optimisée pour différents cas d'usage :
+
+| Dataset | Période | Lignes | Colonnes | Usage |
+|---------|---------|--------|----------|-------|
+| **Base** | 2022-2024 | 51,839 | 15 | Analyses de base |
+| **Réaliste** | 2022-2024 | 24,000 | 15 | FIFO + gestion réaliste |
+| **Enrichi** ⭐ | 2020-2024 | 85,809 | 22 | **Prophet + regressors avancés** |
+
+**Recommandé** : Utilisez le dataset enrichi pour obtenir les meilleures performances de prédiction !
+
+📚 **Documentation détaillée** : Consultez [data/README_DATASETS.md](data/README_DATASETS.md)
+
+### Dataset Enrichi (recommandé)
+
+Le dataset enrichi v3.0 contient **85 809 transactions sur 5 ans** (2020-2024) avec :
+- **40 produits** distincts
+- **12 fournisseurs**
+- **7 régresseurs externes** : température, occupation, patients, épidémies, etc.
+- **Holidays intégrés** : jours fériés français, vacances scolaires, COVID
+- **Changepoints** : événements majeurs (COVID, extensions)
+- **Saisonnalité renforcée** : patterns hebdomadaires et annuels marqués
+
+🚀 **Guide complet** : [data/GUIDE_DATASET_ENRICHI.md](data/GUIDE_DATASET_ENRICHI.md)
 
 ## Installation
 
