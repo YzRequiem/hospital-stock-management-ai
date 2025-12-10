@@ -12,8 +12,12 @@ Usage:
 
 import argparse
 import sys
+import warnings
 from pathlib import Path
 from datetime import datetime
+
+# Suppress Prophet/plotly warning
+warnings.filterwarnings("ignore", message="Importing plotly failed")
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -29,6 +33,119 @@ from config import (
 from src.data_loader import load_dataset, prepare_prophet_data, train_test_split
 from src.metrics import calculate_metrics, print_metrics, interpret_mape
 from src.model import train_prophet_model, predict, predict_future, check_prophet_available
+
+
+def interactive_select(options: list, prompt: str = "Sélectionnez une option") -> str:
+    """
+    Interactive selection menu using keyboard.
+    
+    Args:
+        options: List of (key, label, exists) tuples
+        prompt: Prompt message
+        
+    Returns:
+        Selected key
+    """
+    try:
+        # Try to use keyboard navigation on Windows
+        if sys.platform == 'win32':
+            import msvcrt
+            import os
+            
+            selected = 0
+            
+            def draw_menu():
+                os.system('cls')
+                print("=" * 70)
+                print("📊 SÉLECTION DU DATASET - Clinique du Mont Vert")
+                print("=" * 70)
+                print(f"\n{prompt}:")
+                print("-" * 50)
+                
+                for i, (key, label, exists) in enumerate(options):
+                    status = "✅" if exists else "❌"
+                    prefix = "→ " if i == selected else "  "
+                    print(f"{prefix}{key:<12} {label:<30} {status}")
+                
+                print("-" * 50)
+                print("↑↓: Naviguer | Entrée: Sélectionner | q: Quitter")
+            
+            draw_menu()
+            
+            while True:
+                # Get key press
+                key_press = msvcrt.getch()
+                
+                if key_press == b'\xe0':  # Arrow key prefix
+                    arrow = msvcrt.getch()
+                    if arrow == b'H':  # Up
+                        selected = (selected - 1) % len(options)
+                    elif arrow == b'P':  # Down
+                        selected = (selected + 1) % len(options)
+                    draw_menu()
+                elif key_press == b'\r':  # Enter
+                    os.system('cls')
+                    return options[selected][0]
+                elif key_press in (b'q', b'Q', b'\x1b'):  # q or Escape
+                    os.system('cls')
+                    return None
+        else:
+            # Fallback for non-Windows: simple numbered selection
+            raise ImportError("Use fallback")
+            
+    except (ImportError, Exception):
+        # Fallback: simple numbered menu
+        print(f"\n{prompt}:")
+        print("-" * 50)
+        
+        for i, (key, label, exists) in enumerate(options, 1):
+            status = "✅" if exists else "❌"
+            print(f"  {i}. {key:<12} {label:<30} {status}")
+        
+        print("-" * 50)
+        
+        while True:
+            try:
+                choice = input("Votre choix (numéro ou 'q' pour quitter): ").strip()
+                if choice.lower() == 'q':
+                    return None
+                idx = int(choice) - 1
+                if 0 <= idx < len(options):
+                    return options[idx][0]
+                print("❌ Choix invalide")
+            except ValueError:
+                # Maybe they typed the key directly
+                for key, _, _ in options:
+                    if choice.lower() == key.lower():
+                        return key
+                print("❌ Entrez un numéro valide")
+
+
+def select_dataset_interactive() -> str:
+    """
+    Interactive dataset selection.
+    
+    Returns:
+        Selected dataset key or None if cancelled
+    """
+    options = []
+    for key, filename in DATASETS.items():
+        path = get_dataset_path(filename)
+        exists = path.exists()
+        
+        # Add description
+        if key == "base":
+            label = "Dataset de base (51k lignes)"
+        elif key == "realistic":
+            label = "Dataset réaliste FIFO (24k)"
+        elif key == "enriched":
+            label = "Dataset enrichi ⭐ (85k)"
+        else:
+            label = filename
+            
+        options.append((key, label, exists))
+    
+    return interactive_select(options, "Choisissez un dataset")
 
 
 def cmd_predict(args):
@@ -155,7 +272,14 @@ def cmd_analyze(args):
     print("📊 ANALYSE DE DATASET - Clinique du Mont Vert")
     print("=" * 70)
     
-    dataset_key = args.dataset
+    # Interactive dataset selection if none provided
+    if not args.dataset:
+        dataset_key = select_dataset_interactive()
+        if dataset_key is None:
+            print("\n❌ Sélection annulée.")
+            return 1
+    else:
+        dataset_key = args.dataset
     
     # Get dataset path
     if dataset_key in DATASETS:
@@ -383,8 +507,8 @@ Exemples:
     analyze_parser = subparsers.add_parser('analyze', help='Analyser un dataset')
     analyze_parser.add_argument(
         '--dataset', '-D',
-        default='enriched',
-        help='Dataset à analyser'
+        default=None,
+        help='Dataset à analyser (interactif si non spécifié)'
     )
     analyze_parser.set_defaults(func=cmd_analyze)
     
