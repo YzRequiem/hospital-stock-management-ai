@@ -1,0 +1,153 @@
+# =============================================================================
+# Configuration du Modèle Prophet - Clinique du Mont Vert
+# =============================================================================
+# Paramètres optimisés pour la prédiction de consommation hospitalière
+
+# =============================================================================
+# Configuration par défaut
+# =============================================================================
+default:
+  # Saisonnalité
+  daily_seasonality: false # Pas de pattern intra-journalier
+  weekly_seasonality: true # Pattern hebdomadaire fort (jours ouvrés vs week-end)
+  yearly_seasonality: true # Variations saisonnières annuelles
+  seasonality_mode: "additive" # Variations constantes (multiplicative pour %)
+
+  # Flexibilité du modèle
+  changepoint_prior_scale: 0.05 # Flexibilité des changements de tendance (0.001-0.5)
+  seasonality_prior_scale: 10 # Force de la saisonnalité
+  holidays_prior_scale: 10 # Impact des jours fériés
+
+  # Intervalles de confiance
+  interval_width: 0.85 # 85% d'intervalle de confiance
+  uncertainty_samples: 1000 # Échantillons pour incertitude
+
+  # Entraînement
+  mcmc_samples: 0 # 0 = MAP (rapide), >0 = MCMC (précis mais lent)
+
+# =============================================================================
+# Configurations par type de produit
+# =============================================================================
+# Produits à DLC courte - Plus réactif aux changements
+short_dlc:
+  daily_seasonality: false
+  weekly_seasonality: true
+  yearly_seasonality: true
+  seasonality_mode: "additive"
+  changepoint_prior_scale: 0.1 # Plus flexible pour capter les variations rapides
+  interval_width: 0.90 # Intervalle plus large (plus d'incertitude)
+
+# Produits à DLC longue - Plus stable
+long_dlc:
+  daily_seasonality: false
+  weekly_seasonality: true
+  yearly_seasonality: true
+  seasonality_mode: "additive"
+  changepoint_prior_scale: 0.01 # Moins flexible, tendance plus lisse
+  interval_width: 0.80 # Intervalle plus étroit
+
+# Configuration avec régresseurs externes
+with_regressors:
+  daily_seasonality: false
+  weekly_seasonality: true
+  yearly_seasonality: true
+  seasonality_mode: "additive"
+  changepoint_prior_scale: 0.05
+  interval_width: 0.85
+
+# =============================================================================
+# Régresseurs externes disponibles
+# =============================================================================
+regressors:
+  # Météo
+  temperature:
+    name: "Température"
+    standardize: true
+    mode: "additive"
+    description: "Température moyenne journalière (°C)"
+    expected_impact: "Augmentation consommation de soupes en hiver"
+
+  # Activité hospitalière
+  taux_occupation:
+    name: "Taux d'occupation"
+    standardize: true
+    mode: "multiplicative"
+    description: "Pourcentage d'occupation des lits"
+    expected_impact: "Impact direct proportionnel sur consommation"
+
+  nb_patients_jour:
+    name: "Nombre de patients"
+    standardize: true
+    mode: "additive"
+    description: "Nombre de patients présents"
+    expected_impact: "Plus de patients = plus de consommation"
+
+  # Événements
+  epidemie_active:
+    name: "Épidémie active"
+    standardize: false
+    mode: "additive"
+    description: "Indicateur binaire d'épidémie (grippe, gastro...)"
+    expected_impact: "Peut augmenter ou réduire selon le type"
+
+  jour_ferie:
+    name: "Jour férié"
+    standardize: false
+    mode: "additive"
+    description: "Indicateur binaire jour férié"
+    expected_impact: "Généralement réduction de l'activité"
+
+  periode_covid:
+    name: "Période COVID"
+    standardize: false
+    mode: "additive"
+    description: "Indicateur binaire période COVID-19"
+    expected_impact: "Perturbations importantes sur les patterns"
+
+# =============================================================================
+# Configuration de l'évaluation
+# =============================================================================
+evaluation:
+  # Split train/test
+  test_ratio: 0.2 # 20% des données pour le test
+  min_train_days: 365 # Minimum 1 an de données d'entraînement
+
+  # Métriques
+  primary_metric: "mape" # Métrique principale pour comparaison
+  metrics:
+    - mae
+    - mape
+    - rmse
+    - r2
+
+  # Seuils de qualité MAPE
+  quality_thresholds:
+    excellent: 10 # MAPE < 10%
+    very_good: 15 # MAPE < 15%
+    good: 25 # MAPE < 25%
+    acceptable: 50 # MAPE < 50%
+    # > 50% = poor
+
+# =============================================================================
+# Configuration des prédictions
+# =============================================================================
+prediction:
+  default_horizon: 30 # Jours de prédiction par défaut
+  max_horizon: 365 # Maximum 1 an de prédiction
+  frequency: "D" # Fréquence journalière
+
+  # Post-traitement
+  clip_negative: true # Pas de prédictions négatives
+  round_to_integer: false # Arrondir les quantités
+  apply_safety_margin: true # Appliquer marge de sécurité
+  safety_margin_percent: 10 # 10% de marge de sécurité
+
+# =============================================================================
+# Cross-validation
+# =============================================================================
+cross_validation:
+  enabled: false # Désactivé par défaut (lent)
+  initial: "730 days" # 2 ans de données initiales
+  period: "90 days" # Réentraînement tous les 90 jours
+  horizon: "30 days" # Prédiction sur 30 jours
+  parallel: "processes" # Parallélisation

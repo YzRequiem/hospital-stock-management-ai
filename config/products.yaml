@@ -1,0 +1,187 @@
+# =============================================================================
+# Configuration des Produits - Clinique du Mont Vert
+# =============================================================================
+# Ce fichier définit les produits alimentaires et leurs caractéristiques
+# pour la gestion des stocks hospitaliers.
+
+products:
+  # -------------------------------------------------------------------------
+  # Produits à DLC courte (< 7 jours) - Priorité haute
+  # -------------------------------------------------------------------------
+  poulet_frais:
+    name: "Poulet Frais"
+    category: "viande"
+    dlc_days: 2
+    priority: "high"
+    unit: "kg"
+    storage: "refrigerator"
+    min_stock: 10
+    max_stock: 100
+    reorder_point: 20
+    description: "Viande de poulet fraîche pour les repas"
+
+  poisson_frais:
+    name: "Poisson Frais"
+    category: "poisson"
+    dlc_days: 2
+    priority: "high"
+    unit: "kg"
+    storage: "refrigerator"
+    min_stock: 5
+    max_stock: 50
+    reorder_point: 15
+    description: "Poisson frais du jour"
+
+  produits_laitiers:
+    name: "Produits Laitiers"
+    category: "laitier"
+    dlc_days: 7
+    priority: "high"
+    unit: "kg"
+    storage: "refrigerator"
+    min_stock: 20
+    max_stock: 150
+    reorder_point: 40
+    description: "Yaourts, fromages frais, crème"
+
+  # -------------------------------------------------------------------------
+  # Produits à DLC moyenne (7-30 jours) - Priorité moyenne
+  # -------------------------------------------------------------------------
+  legumes_frais:
+    name: "Légumes Frais"
+    category: "legume"
+    dlc_days: 10
+    priority: "medium"
+    unit: "kg"
+    storage: "refrigerator"
+    min_stock: 30
+    max_stock: 200
+    reorder_point: 60
+    description: "Légumes frais de saison"
+
+  fruits_frais:
+    name: "Fruits Frais"
+    category: "fruit"
+    dlc_days: 7
+    priority: "medium"
+    unit: "kg"
+    storage: "refrigerator"
+    min_stock: 20
+    max_stock: 150
+    reorder_point: 40
+    description: "Fruits frais de saison"
+
+  pain:
+    name: "Pain"
+    category: "boulangerie"
+    dlc_days: 3
+    priority: "medium"
+    unit: "kg"
+    storage: "ambient"
+    min_stock: 10
+    max_stock: 50
+    reorder_point: 15
+    description: "Pain frais quotidien"
+
+  # -------------------------------------------------------------------------
+  # Produits à DLC longue (> 30 jours) - Priorité basse
+  # -------------------------------------------------------------------------
+  conserves:
+    name: "Conserves"
+    category: "epicerie"
+    dlc_days: 365
+    priority: "low"
+    unit: "kg"
+    storage: "ambient"
+    min_stock: 50
+    max_stock: 500
+    reorder_point: 100
+    description: "Conserves de légumes et plats préparés"
+
+  feculents:
+    name: "Féculents"
+    category: "epicerie"
+    dlc_days: 180
+    priority: "low"
+    unit: "kg"
+    storage: "ambient"
+    min_stock: 100
+    max_stock: 800
+    reorder_point: 200
+    description: "Pâtes, riz, semoule"
+
+  surgeles:
+    name: "Surgelés"
+    category: "surgele"
+    dlc_days: 365
+    priority: "low"
+    unit: "kg"
+    storage: "freezer"
+    min_stock: 50
+    max_stock: 400
+    reorder_point: 100
+    description: "Légumes et viandes surgelés"
+
+# =============================================================================
+# Catégories de produits
+# =============================================================================
+categories:
+  viande:
+    name: "Viandes"
+    storage_temp: "0-4°C"
+    critical: true
+
+  poisson:
+    name: "Poissons"
+    storage_temp: "0-2°C"
+    critical: true
+
+  laitier:
+    name: "Produits Laitiers"
+    storage_temp: "2-6°C"
+    critical: true
+
+  legume:
+    name: "Légumes"
+    storage_temp: "4-8°C"
+    critical: false
+
+  fruit:
+    name: "Fruits"
+    storage_temp: "4-10°C"
+    critical: false
+
+  boulangerie:
+    name: "Boulangerie"
+    storage_temp: "ambient"
+    critical: false
+
+  epicerie:
+    name: "Épicerie"
+    storage_temp: "ambient"
+    critical: false
+
+  surgele:
+    name: "Surgelés"
+    storage_temp: "-18°C"
+    critical: false
+
+# =============================================================================
+# Règles de gestion des stocks
+# =============================================================================
+stock_rules:
+  # Seuils d'alerte
+  alert_thresholds:
+    critical: 0.1 # Stock < 10% du max
+    warning: 0.25 # Stock < 25% du max
+    good: 0.5 # Stock > 50% du max
+
+  # Prédiction
+  prediction:
+    default_horizon_days: 30
+    safety_stock_factor: 1.2 # 20% de marge de sécurité
+
+  # DLC
+  dlc:
+    alert_days_before: 2 # Alerte 2 jours avant expiration
+    critical_days_before: 1 # Critique 1 jour avant
