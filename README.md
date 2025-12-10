@@ -106,13 +106,23 @@ pip install -r requirements.txt
 ### CLI (Ligne de commande)
 
 ```bash
-# Prédiction pour un produit
+# Mode interactif complet (recommandé)
+python main.py predict
+# → Sélection interactive du dataset (↑↓ + Entrée)
+# → Sélection interactive du produit (↑↓ + Entrée)
+# → Saisie du nombre de jours
+
+# Mode interactif analyse
+python main.py analyze
+# → Sélection interactive du dataset
+
+# Prédiction avec paramètres directs
 python main.py predict --product "Poulet Frais" --days 30
 
 # Prédiction avec sauvegarde
 python main.py predict -p "Poulet Frais" -d 30 --save
 
-# Analyser un dataset
+# Analyser un dataset spécifique
 python main.py analyze --dataset enriched
 
 # Lister les produits configurés
@@ -124,6 +134,12 @@ python main.py list-datasets
 # Aide
 python main.py --help
 ```
+
+**Navigation interactive :**
+
+- `↑↓` : Naviguer dans la liste
+- `Entrée` : Valider la sélection
+- `q` : Quitter/Annuler
 
 ### API REST
 
