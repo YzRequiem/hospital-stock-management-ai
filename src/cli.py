@@ -148,6 +148,52 @@ def select_dataset_interactive() -> str:
     return interactive_select(options, "Choisissez un dataset")
 
 
+def select_product_interactive(dataset_key: str = "enriched") -> str:
+    """
+    Interactive product selection from dataset.
+    
+    Args:
+        dataset_key: Dataset to load products from
+        
+    Returns:
+        Selected product name or None if cancelled
+    """
+    # Load dataset to get products
+    if dataset_key in DATASETS:
+        dataset_file = DATASETS[dataset_key]
+    else:
+        dataset_file = dataset_key
+    
+    dataset_path = get_dataset_path(dataset_file)
+    
+    if not dataset_path.exists():
+        print(f"❌ Dataset non trouvé: {dataset_path}")
+        return None
+    
+    df = load_dataset(str(dataset_path))
+    
+    # Detect product column
+    if 'nom_produit' in df.columns:
+        product_col = 'nom_produit'
+    elif 'produit' in df.columns:
+        product_col = 'produit'
+    else:
+        print("❌ Aucune colonne de produit trouvée")
+        return None
+    
+    # Get unique products sorted
+    products = sorted(df[product_col].unique())
+    
+    # Build options with line count
+    options = []
+    for product in products:
+        count = len(df[df[product_col] == product])
+        label = f"{count:,} lignes"
+        options.append((product, label, True))
+    
+    return interactive_select(options, "Choisissez un produit")
+
+
 def cmd_predict(args):
     """
     Run prediction for a specific product.
@@ -155,20 +201,52 @@ def cmd_predict(args):
     Args:
         args: Parsed command line arguments
     """
-    print("=" * 70)
-    print("🏥 PRÉDICTION DE STOCK - Clinique du Mont Vert")
-    print("=" * 70)
-    
     if not check_prophet_available():
+        print("=" * 70)
+        print("🏥 PRÉDICTION DE STOCK - Clinique du Mont Vert")
+        print("=" * 70)
         print("❌ Erreur: Prophet n'est pas installé")
         print("   Installez-le avec: pip install prophet")
         return 1
     
-    # Load configuration
-    product_name = args.product
-    days = args.days
+    # Get dataset (interactive if not specified)
     dataset_key = args.dataset
+    if not dataset_key:
+        dataset_key = select_dataset_interactive()
+        if dataset_key is None:
+            print("\n❌ Sélection annulée.")
+            return 1
     
+    # Get product (interactive if not specified)
+    product_name = args.product
+    if not product_name:
+        product_name = select_product_interactive(dataset_key)
+        if product_name is None:
+            print("\n❌ Sélection annulée.")
+            return 1
+    
+    # Get days (interactive if not specified)
+    days = args.days
+    if days is None:
+        print("=" * 70)
+        print("📅 HORIZON DE PRÉDICTION")
+        print("=" * 70)
+        while True:
+            try:
+                days_input = input("\nNombre de jours à prédire (1-365): ").strip()
+                if days_input.lower() == 'q':
+                    print("\n❌ Sélection annulée.")
+                    return 1
+                days = int(days_input)
+                if 1 <= days <= 365:
+                    break
+                print("❌ Veuillez entrer un nombre entre 1 et 365")
+            except ValueError:
+                print("❌ Veuillez entrer un nombre valide")
+    
+    print("=" * 70)
+    print("🏥 PRÉDICTION DE STOCK - Clinique du Mont Vert")
+    print("=" * 70)
     print(f"\n📦 Produit: {product_name}")
     print(f"📅 Horizon: {days} jours")
     print(f"📊 Dataset: {dataset_key}")
@@ -189,10 +267,29 @@ def cmd_predict(args):
     print("\n📥 Chargement des données...")
     df = load_dataset(str(dataset_path))
     
+    # Detect target column (quantite_consommee or quantite)
+    if 'quantite_consommee' in df.columns:
+        target_col = 'quantite_consommee'
+    elif 'quantite' in df.columns:
+        target_col = 'quantite'
+    else:
+        print("❌ Erreur: Aucune colonne de quantité trouvée")
+        return 1
+    
+    # Detect product column
+    if 'nom_produit' in df.columns:
+        product_col = 'nom_produit'
+    elif 'produit' in df.columns:
+        product_col = 'produit'
+    else:
+        print("❌ Erreur: Aucune colonne de produit trouvée")
+        return 1
+    
     prophet_df = prepare_prophet_data(
         df,
+        target_column=target_col,
         product_filter=product_name,
-        product_column='produit'
+        product_column=product_col
     )
     
     if len(prophet_df) == 0:
@@ -482,19 +579,19 @@ Exemples:
     predict_parser = subparsers.add_parser('predict', help='Faire des prédictions')
     predict_parser.add_argument(
         '--product', '-p',
-        required=True,
-        help='Nom du produit à prédire'
+        default=None,
+        help='Nom du produit à prédire (interactif si non spécifié)'
     )
     predict_parser.add_argument(
         '--days', '-d',
         type=int,
-        default=30,
-        help='Nombre de jours à prédire (défaut: 30)'
+        default=None,
+        help='Nombre de jours à prédire (interactif si non spécifié)'
     )
     predict_parser.add_argument(
         '--dataset', '-D',
-        default='enriched',
-        help='Dataset à utiliser: base, realistic, enriched (défaut: enriched)'
+        default=None,
+        help='Dataset à utiliser (interactif si non spécifié)'
     )
     predict_parser.add_argument(
         '--save', '-s',
