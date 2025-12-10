@@ -74,6 +74,17 @@ hospital-stock-management-ai/
 
 📚 Documentation : [data/README_DATASETS.md](data/README_DATASETS.md)
 
+## 🔮 Modèle de Prédiction
+
+Ce projet utilise **Prophet** (Meta/Facebook) pour la prédiction de séries temporelles. Prophet est particulièrement adapté car il gère automatiquement :
+
+- 📅 **Saisonnalité multiple** : patterns hebdomadaires et annuels
+- 🌡️ **Régresseurs externes** : température, occupation, épidémies...
+- 📊 **Données manquantes** : jours sans consommation
+- 📈 **Changements de tendance** : impact COVID, nouvelles pratiques
+
+📚 Documentation complète : [docs/PROPHET_MODEL.md](docs/PROPHET_MODEL.md)
+
 ## 🚀 Installation
 
 ### Prérequis
