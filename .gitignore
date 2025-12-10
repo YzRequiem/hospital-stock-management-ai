@@ -34,3 +34,6 @@ results/*/
 # Temporary files
 *.tmp
 *.log
+
+# cache py
+__pycache__/
