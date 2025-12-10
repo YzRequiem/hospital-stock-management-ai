@@ -19,35 +19,35 @@ Guide détaillé pour utiliser le dataset enrichi avec Prophet et obtenir les me
 
 ### Colonnes de base (15)
 
-| Colonne | Type | Description | Exemple |
-|---------|------|-------------|---------|
-| `date` | datetime | Date de l'opération | 2024-01-15 |
-| `id_produit` | int | ID unique du produit | 1 |
-| `nom_produit` | string | Nom du produit | "Poulet frais" |
-| `type_produit` | string | Catégorie | "Aliment" ou "Entretien" |
-| `type_operation` | string | Type | "ENTREE" ou "SORTIE" |
-| `type_sortie` | string | Sous-type | "CONSOMMATION" ou "DESTRUCTION" |
-| `quantite` | float | Quantité (positive) | 12.5 |
-| `unite` | string | Unité de mesure | "kg", "L", "unité" |
-| `id_lot` | int | ID du lot | 4521 |
-| `id_arrivage` | int | ID arrivage | 2341 |
-| `id_fournisseur` | int | ID fournisseur | 5 |
-| `nom_fournisseur` | string | Nom fournisseur | "Transgourmet" |
-| `date_expiration` | datetime | Date limite | 2024-01-17 |
-| `stock_theorique` | float | Stock après opération | 156.3 |
-| `temperature_stockage` | float | Température °C | 4.5 |
+| Colonne                | Type     | Description           | Exemple                         |
+| ---------------------- | -------- | --------------------- | ------------------------------- |
+| `date`                 | datetime | Date de l'opération   | 2024-01-15                      |
+| `id_produit`           | int      | ID unique du produit  | 1                               |
+| `nom_produit`          | string   | Nom du produit        | "Poulet frais"                  |
+| `type_produit`         | string   | Catégorie             | "Aliment" ou "Entretien"        |
+| `type_operation`       | string   | Type                  | "ENTREE" ou "SORTIE"            |
+| `type_sortie`          | string   | Sous-type             | "CONSOMMATION" ou "DESTRUCTION" |
+| `quantite`             | float    | Quantité (positive)   | 12.5                            |
+| `unite`                | string   | Unité de mesure       | "kg", "L", "unité"              |
+| `id_lot`               | int      | ID du lot             | 4521                            |
+| `id_arrivage`          | int      | ID arrivage           | 2341                            |
+| `id_fournisseur`       | int      | ID fournisseur        | 5                               |
+| `nom_fournisseur`      | string   | Nom fournisseur       | "Transgourmet"                  |
+| `date_expiration`      | datetime | Date limite           | 2024-01-17                      |
+| `stock_theorique`      | float    | Stock après opération | 156.3                           |
+| `temperature_stockage` | float    | Température °C        | 4.5                             |
 
 ### Régresseurs externes (7) ✨
 
-| Colonne | Type | Range | Moyenne | Utilisation Prophet |
-|---------|------|-------|---------|---------------------|
-| **temperature** | float | -5 à 35°C | 15.0°C | `add_regressor('temperature')` |
-| **taux_occupation** | float | 50 à 100% | 77.1% | `add_regressor('taux_occupation')` |
-| **nb_patients** | int | 125 à 250 | 192 | `add_regressor('nb_patients')` |
-| **epidemie_grippe** | int | 0 ou 1 | - | `add_regressor('epidemie_grippe')` |
-| **vacances_scolaires** | int | 0 ou 1 | - | Utiliser comme holiday |
-| **jour_ferie** | int | 0 ou 1 | - | Utiliser comme holiday |
-| **covid_impact** | int | 0 ou 1 | - | Utiliser comme holiday |
+| Colonne                | Type  | Range     | Moyenne | Utilisation Prophet                |
+| ---------------------- | ----- | --------- | ------- | ---------------------------------- |
+| **temperature**        | float | -5 à 35°C | 15.0°C  | `add_regressor('temperature')`     |
+| **taux_occupation**    | float | 50 à 100% | 77.1%   | `add_regressor('taux_occupation')` |
+| **nb_patients**        | int   | 125 à 250 | 192     | `add_regressor('nb_patients')`     |
+| **epidemie_grippe**    | int   | 0 ou 1    | -       | `add_regressor('epidemie_grippe')` |
+| **vacances_scolaires** | int   | 0 ou 1    | -       | Utiliser comme holiday             |
+| **jour_ferie**         | int   | 0 ou 1    | -       | Utiliser comme holiday             |
+| **covid_impact**       | int   | 0 ou 1    | -       | Utiliser comme holiday             |
 
 ---
 
@@ -267,7 +267,14 @@ y_true = test['y'].values
 y_pred = predictions_test['yhat'].values
 
 mae = np.mean(np.abs(y_true - y_pred))
-mape = np.mean(np.abs((y_true - y_pred) / (y_true + 0.01))) * 100
+
+# MAPE calculé uniquement sur les jours avec consommation > 0
+mask_nonzero = y_true > 0
+if mask_nonzero.sum() > 0:
+    mape = np.mean(np.abs((y_true[mask_nonzero] - y_pred[mask_nonzero]) / y_true[mask_nonzero])) * 100
+else:
+    mape = 0.0
+
 rmse = np.sqrt(np.mean((y_true - y_pred)**2))
 
 print(f"\n📊 MÉTRIQUES DE PERFORMANCE")
@@ -443,12 +450,12 @@ print(f"✅ Résumé JSON exporté : {filename_json}")
 
 ### 1. Choisir les bons régresseurs par produit
 
-| Type de produit | Régresseurs recommandés |
-|-----------------|-------------------------|
-| **Ultra-périssables** (poulet, poisson) | `taux_occupation`, `nb_patients`, `jour_ferie` |
-| **Légumes/Fruits** | `temperature`, `taux_occupation` |
-| **Produits d'entretien** | `epidemie_grippe`, `covid_impact`, `nb_patients` |
-| **Produits stables** (riz, pâtes) | `taux_occupation` uniquement |
+| Type de produit                         | Régresseurs recommandés                          |
+| --------------------------------------- | ------------------------------------------------ |
+| **Ultra-périssables** (poulet, poisson) | `taux_occupation`, `nb_patients`, `jour_ferie`   |
+| **Légumes/Fruits**                      | `temperature`, `taux_occupation`                 |
+| **Produits d'entretien**                | `epidemie_grippe`, `covid_impact`, `nb_patients` |
+| **Produits stables** (riz, pâtes)       | `taux_occupation` uniquement                     |
 
 ### 2. Tuning des hyperparamètres
 

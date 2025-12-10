@@ -240,7 +240,14 @@ y_true = test['y'].values
 y_pred = predictions_test['yhat'].values
 
 mae = np.mean(np.abs(y_true - y_pred))
-mape = np.mean(np.abs((y_true - y_pred) / (y_true + 0.01))) * 100
+
+# MAPE calculé uniquement sur les jours avec consommation > 0
+mask_nonzero = y_true > 0
+if mask_nonzero.sum() > 0:
+    mape = np.mean(np.abs((y_true[mask_nonzero] - y_pred[mask_nonzero]) / y_true[mask_nonzero])) * 100
+else:
+    mape = 0.0
+
 rmse = np.sqrt(np.mean((y_true - y_pred)**2))
 
 print(f"\\nMAE  : {mae:.2f} kg")
