@@ -1,163 +1,257 @@
-# Gestion Intelligente des Stocks Hospitaliers - IA Prédictive
+# 🏥 Hospital Stock Management AI
 
-Projet de Master EISI - Analyse prédictive pour l'optimisation de la gestion des stocks de la Clinique du Mont Vert.
+**Clinique du Mont Vert** - Système de prédiction de stock hospitalier avec IA
 
-## Description
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![Prophet](https://img.shields.io/badge/Prophet-1.1+-orange.svg)](https://facebook.github.io/prophet/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Ce projet utilise des techniques d'intelligence artificielle et d'apprentissage automatique pour prédire la consommation de produits hospitaliers et optimiser la gestion des stocks. L'objectif est de réduire le gaspillage alimentaire et prévenir les ruptures de stock.
+## 📋 Description
 
-### Résultats attendus
-- Réduction de 30% du gaspillage alimentaire
-- Réduction de 50% des ruptures de stock
-- Économies annuelles estimées à 60 000€
+Projet de Master EISI utilisant l'intelligence artificielle pour prédire la consommation de produits hospitaliers et optimiser la gestion des stocks. L'objectif est de réduire le gaspillage alimentaire et prévenir les ruptures de stock.
 
-## Structure du Projet
+### 🎯 Résultats attendus
+
+- ✅ Réduction de **30%** du gaspillage alimentaire
+- ✅ Réduction de **50%** des ruptures de stock
+- ✅ Économies annuelles estimées à **60 000€**
+
+## 🏗️ Structure du Projet
 
 ```
-final-project/
-├── data/
-│   ├── dataset_stock_hopital.csv          # Dataset de base (3 ans)
-│   ├── dataset_stock_hopital_REALISTE.csv # Dataset avec FIFO
-│   ├── dataset_stock_hopital_ENRICHI.csv  # ⭐ Dataset enrichi (5 ans + regressors)
-│   ├── README_DATASETS.md                 # Comparaison des datasets
-│   └── GUIDE_DATASET_ENRICHI.md          # Guide d'utilisation complet
-├── notebooks/
-│   ├── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb  # Notebook principal
-│   ├── results_manager.py                    # Gestionnaire de résultats
-│   └── EXEMPLE_UTILISATION.md               # Guide du results manager
-├── results/                               # Résultats automatiques
-│   └── [YYYYMMDD_HHMMSS]/               # Un dossier par exécution
-│       ├── predictions_*.csv
-│       ├── summary_*.json
-│       ├── README.txt                   # Résumé auto
-│       └── graphs/
-│           └── *.png
-├── .gitignore
-├── README.md
-└── requirements.txt
+hospital-stock-management-ai/
+├── 📁 api/                    # API REST FastAPI
+│   ├── __init__.py
+│   ├── main.py               # Application FastAPI
+│   └── models.py             # Modèles Pydantic
+├── 📁 config/                 # Configuration centralisée
+│   ├── __init__.py
+│   ├── settings.py           # Settings Python
+│   ├── products.yaml         # Définition des produits
+│   └── model_params.yaml     # Paramètres Prophet
+├── 📁 data/                   # Datasets
+│   ├── stock_hospital_*.csv  # 3 datasets disponibles
+│   ├── README_DATASETS.md    # Comparaison datasets
+│   └── GUIDE_DATASET_ENRICHI.md
+├── 📁 notebooks/              # Analyses Jupyter
+│   ├── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb
+│   ├── Analyse_Mont_Vert_ENRICHI.ipynb
+│   └── results_manager.py
+├── 📁 results/                # Résultats générés
+│   └── analyse-{product}-{timestamp}/
+├── 📁 src/                    # Code source modulaire
+│   ├── __init__.py
+│   ├── data_loader.py        # Chargement données
+│   ├── model.py              # Modèle Prophet
+│   ├── metrics.py            # Calcul métriques
+│   ├── visualization.py      # Graphiques
+│   └── cli.py                # Interface CLI
+├── 📁 tests/                  # Tests unitaires
+│   ├── conftest.py           # Fixtures pytest
+│   ├── test_data_loader.py
+│   ├── test_metrics.py
+│   └── test_config.py
+├── main.py                    # Point d'entrée CLI
+├── Dockerfile                 # Image Docker
+├── docker-compose.yml         # Orchestration
+├── requirements.txt           # Dépendances
+├── pytest.ini                 # Config pytest
+└── LICENSE                    # MIT License
 ```
 
-## Données
+## 📊 Données
 
 ### 3 Datasets disponibles
 
-Le projet inclut **3 versions** du dataset, chacune optimisée pour différents cas d'usage :
+| Dataset        | Période   | Lignes | Colonnes | Usage                     |
+| -------------- | --------- | ------ | -------- | ------------------------- |
+| **Base**       | 2022-2024 | 51,839 | 15       | Analyses de base          |
+| **Réaliste**   | 2022-2024 | 24,000 | 15       | FIFO + gestion réaliste   |
+| **Enrichi** ⭐ | 2020-2024 | 85,809 | 22       | **Prophet + régresseurs** |
 
-| Dataset | Période | Lignes | Colonnes | Usage |
-|---------|---------|--------|----------|-------|
-| **Base** | 2022-2024 | 51,839 | 15 | Analyses de base |
-| **Réaliste** | 2022-2024 | 24,000 | 15 | FIFO + gestion réaliste |
-| **Enrichi** ⭐ | 2020-2024 | 85,809 | 22 | **Prophet + regressors avancés** |
+**Recommandé** : Dataset enrichi avec 7 régresseurs externes (température, occupation, patients, épidémies, jours fériés, COVID).
 
-**Recommandé** : Utilisez le dataset enrichi pour obtenir les meilleures performances de prédiction !
+📚 Documentation : [data/README_DATASETS.md](data/README_DATASETS.md)
 
-📚 **Documentation détaillée** : Consultez [data/README_DATASETS.md](data/README_DATASETS.md)
-
-### Dataset Enrichi (recommandé)
-
-Le dataset enrichi v3.0 contient **85 809 transactions sur 5 ans** (2020-2024) avec :
-- **40 produits** distincts
-- **12 fournisseurs**
-- **7 régresseurs externes** : température, occupation, patients, épidémies, etc.
-- **Holidays intégrés** : jours fériés français, vacances scolaires, COVID
-- **Changepoints** : événements majeurs (COVID, extensions)
-- **Saisonnalité renforcée** : patterns hebdomadaires et annuels marqués
-
-🚀 **Guide complet** : [data/GUIDE_DATASET_ENRICHI.md](data/GUIDE_DATASET_ENRICHI.md)
-
-## Installation
+## 🚀 Installation
 
 ### Prérequis
-- Python 3.8 ou supérieur
-- pip
 
-### Configuration
+- Python 3.11+
+- pip ou conda
 
-1. Cloner le repository :
+### Installation rapide
+
 ```bash
-git clone <votre-repo-url>
-cd final-project
-```
+# Cloner le repository
+git clone https://github.com/YzRequiem/hospital-stock-management-ai.git
+cd hospital-stock-management-ai
 
-2. Créer un environnement virtuel :
-```bash
+# Créer l'environnement virtuel
 python -m venv venv
-```
 
-3. Activer l'environnement virtuel :
-- Windows :
-```bash
+# Activer (Windows)
 venv\Scripts\activate
-```
-- Linux/Mac :
-```bash
-source venv/bin/activate
-```
 
-4. Installer les dépendances :
-```bash
+# Activer (Linux/Mac)
+source venv/bin/activate
+
+# Installer les dépendances
 pip install -r requirements.txt
 ```
 
-## Utilisation
+## 💻 Utilisation
 
-1. Ouvrir le notebook dans VS Code ou Jupyter :
+### CLI (Ligne de commande)
+
 ```bash
-code notebooks/Analyse_Mont_Vert_LOCAL_VSCODE.ipynb
+# Prédiction pour un produit
+python main.py predict --product "Poulet Frais" --days 30
+
+# Prédiction avec sauvegarde
+python main.py predict -p "Poulet Frais" -d 30 --save
+
+# Analyser un dataset
+python main.py analyze --dataset enriched
+
+# Lister les produits configurés
+python main.py list-products
+
+# Lister les datasets
+python main.py list-datasets
+
+# Aide
+python main.py --help
 ```
 
-2. Exécuter les cellules du notebook dans l'ordre
+### API REST
 
-3. Les résultats seront automatiquement sauvegardés dans `results/[YYYYMMDD_HHMMSS]/`
+```bash
+# Lancer l'API
+uvicorn api.main:app --reload --port 8000
 
-### Personnalisation
+# Documentation Swagger
+# http://localhost:8000/docs
+```
 
-Pour analyser un autre produit, modifier la variable `PRODUIT_ANALYSE` dans la section 6 du notebook.
+**Endpoints principaux :**
 
-## Fonctionnalités
+| Méthode | Endpoint             | Description            |
+| ------- | -------------------- | ---------------------- |
+| GET     | `/health`            | Health check           |
+| GET     | `/products`          | Liste des produits     |
+| GET     | `/datasets`          | Liste des datasets     |
+| POST    | `/predict`           | Prédiction (JSON body) |
+| GET     | `/predict/{product}` | Prédiction rapide      |
 
-### Analyse des Données
-- Exploration et nettoyage des données
-- Détection des patterns saisonniers
-- Identification des produits critiques
-- Analyse des produits périssables
+**Exemple d'appel :**
 
-### Modélisation Prédictive
-- Utilisation de Facebook Prophet pour les prévisions
-- Prédictions avec intervalles de confiance
-- Prise en compte de la saisonnalité et des tendances
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"product": "Poulet Frais", "days": 30}'
+```
 
-### Visualisations
-- Top 10 des produits les plus consommés
-- Analyse des produits périssables
-- Patterns hebdomadaires et mensuels
-- Graphiques de prédictions
+### Docker
 
-### Recommandations Business
-- Alertes de gaspillage potentiel
-- Suggestions de commandes optimisées
-- Analyse des risques de rupture
+```bash
+# Build et lancer
+docker-compose up -d api
 
-## Technologies Utilisées
+# API disponible sur http://localhost:8000
 
-- **Python** : Langage principal
-- **pandas** : Manipulation de données
-- **numpy** : Calculs numériques
-- **matplotlib/seaborn** : Visualisations
-- **Prophet** : Prévisions de séries temporelles
-- **Jupyter** : Environnement d'analyse interactive
+# Lancer les tests
+docker-compose --profile test run tests
 
-## Résultats
+# Mode développement (hot-reload)
+docker-compose --profile dev up api-dev
+```
 
-Chaque exécution du notebook génère :
-- **Prédictions CSV** : Prévisions quotidiennes sur 4 semaines
-- **Résumé JSON** : Statistiques et recommandations
-- **Graphiques PNG** : 6 visualisations professionnelles
+### Notebooks Jupyter
 
-## Auteur
+```bash
+# Ouvrir dans VS Code
+code notebooks/Analyse_Mont_Vert_ENRICHI.ipynb
 
-Projet de Master EISI - Clinique du Mont Vert
+# Ou lancer Jupyter
+jupyter notebook
+```
 
-## Licence
+## 🧪 Tests
 
-Projet académique
+```bash
+# Exécuter tous les tests
+pytest
+
+# Tests avec couverture
+pytest --cov=src --cov-report=html
+
+# Tests verbeux
+pytest -v
+```
+
+## 📈 Métriques de Performance
+
+Le modèle Prophet est évalué avec :
+
+| Métrique | Description               | Seuil acceptable |
+| -------- | ------------------------- | ---------------- |
+| **MAE**  | Erreur absolue moyenne    | < 10 kg          |
+| **MAPE** | Erreur relative moyenne   | < 25%            |
+| **RMSE** | Erreur quadratique        | < 15 kg          |
+| **R²**   | Coefficient détermination | > 0.7            |
+
+**Interprétation MAPE :**
+
+- ✅ Excellent : < 10%
+- ✅ Très bon : < 15%
+- ✅ Bon : < 25%
+- ⚠️ Acceptable : < 50%
+- ❌ Insuffisant : > 50%
+
+## 🛠️ Technologies
+
+| Catégorie         | Technologies                       |
+| ----------------- | ---------------------------------- |
+| **Langage**       | Python 3.11+                       |
+| **Data Science**  | pandas, numpy, matplotlib, seaborn |
+| **ML/Prédiction** | Prophet (Facebook)                 |
+| **API**           | FastAPI, Pydantic, uvicorn         |
+| **Tests**         | pytest, pytest-cov                 |
+| **Config**        | YAML, dataclasses                  |
+| **Container**     | Docker, docker-compose             |
+
+## 📁 Modules
+
+### `src/data_loader.py`
+
+- `load_dataset()` - Chargement CSV avec encodage auto
+- `prepare_prophet_data()` - Préparation format Prophet
+- `train_test_split()` - Split chronologique
+
+### `src/model.py`
+
+- `train_prophet_model()` - Entraînement avec saisonnalité
+- `predict()` - Prédictions sur données existantes
+- `predict_future()` - Prédictions futures
+
+### `src/metrics.py`
+
+- `calculate_mape()` - MAPE avec gestion des zéros
+- `calculate_metrics()` - MAE, MAPE, RMSE, R²
+- `interpret_mape()` - Interprétation qualitative
+
+### `src/visualization.py`
+
+- `plot_predictions()` - Graphique prédictions vs réel
+- `plot_seasonality()` - Composantes saisonnières
+- `plot_weekly_pattern()` - Pattern hebdomadaire
+
+## 👥 Auteur
+
+**Master EISI** - Clinique du Mont Vert
+
+## 📄 Licence
+
+Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.
