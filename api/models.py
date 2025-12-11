@@ -165,7 +165,7 @@ class DatasetInfo(BaseModel):
     rows: int
     columns: int
     memory_mb: float
-    date_range: Optional[Dict[str, str]] = None
+    date_range: Optional[Dict[str, Any]] = None
     products: Optional[List[str]] = None
 
 

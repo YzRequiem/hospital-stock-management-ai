@@ -257,7 +257,7 @@ async def get_dataset_info_endpoint(dataset_key: DatasetEnum):
         info = get_dataset_info(df)
         
         # Get unique products
-        product_col = next((c for c in ['produit', 'product'] if c in df.columns), None)
+        product_col = next((c for c in ['nom_produit', 'produit', 'product'] if c in df.columns), None)
         products = list(df[product_col].unique()) if product_col else None
         
         # Format date range
@@ -330,10 +330,27 @@ async def predict(request: PredictionRequest):
         # Load and prepare data
         df = load_dataset(str(dataset_path))
         
+        # Detect target column (quantite_consommee or quantite)
+        if 'quantite_consommee' in df.columns:
+            target_col = 'quantite_consommee'
+        elif 'quantite' in df.columns:
+            target_col = 'quantite'
+        else:
+            raise HTTPException(status_code=500, detail="No quantity column found in dataset")
+        
+        # Detect product column
+        if 'nom_produit' in df.columns:
+            product_col = 'nom_produit'
+        elif 'produit' in df.columns:
+            product_col = 'produit'
+        else:
+            raise HTTPException(status_code=500, detail="No product column found in dataset")
+        
         prophet_df = prepare_prophet_data(
             df,
+            target_column=target_col,
             product_filter=request.product,
-            product_column='produit'
+            product_column=product_col
         )
         
         if len(prophet_df) == 0:

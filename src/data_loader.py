@@ -163,19 +163,35 @@ def get_dataset_info(df: pd.DataFrame) -> dict:
         "rows": len(df),
         "columns": len(df.columns),
         "column_names": list(df.columns),
-        "dtypes": df.dtypes.to_dict(),
+        "dtypes": {k: str(v) for k, v in df.dtypes.to_dict().items()},
         "missing_values": df.isnull().sum().to_dict(),
         "memory_mb": df.memory_usage(deep=True).sum() / 1024 / 1024
     }
     
-    # Date range if date column exists
-    date_cols = df.select_dtypes(include=['datetime64']).columns
-    if len(date_cols) > 0:
-        col = date_cols[0]
-        info["date_range"] = {
-            "start": df[col].min(),
-            "end": df[col].max(),
-            "days": (df[col].max() - df[col].min()).days
-        }
+    # Date range - check by column name first, then by dtype
+    date_col = None
+    for col_name in ['date', 'ds', 'Date', 'DATE']:
+        if col_name in df.columns:
+            date_col = col_name
+            break
+    
+    # Fallback to datetime columns
+    if date_col is None:
+        date_cols = df.select_dtypes(include=['datetime64']).columns
+        if len(date_cols) > 0:
+            date_col = date_cols[0]
+    
+    if date_col:
+        try:
+            dates = pd.to_datetime(df[date_col], errors='coerce')
+            dates = dates.dropna()
+            if len(dates) > 0:
+                info["date_range"] = {
+                    "start": dates.min(),
+                    "end": dates.max(),
+                    "days": (dates.max() - dates.min()).days
+                }
+        except Exception:
+            pass
     
     return info
