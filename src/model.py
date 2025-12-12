@@ -141,7 +141,8 @@ def predict_future(
     periods: int = 30,
     freq: str = 'D',
     include_history: bool = False,
-    future_regressors: Optional[pd.DataFrame] = None
+    future_regressors: Optional[pd.DataFrame] = None,
+    start_date: Optional[str] = None
 ) -> pd.DataFrame:
     """
     Generate future predictions.
@@ -152,15 +153,35 @@ def predict_future(
         freq: Frequency of predictions ('D' for daily)
         include_history: Include historical data in output
         future_regressors: DataFrame with future regressor values
+        start_date: Start date for predictions (default: today if after training data)
         
     Returns:
         DataFrame with future predictions
     """
-    future = model.make_future_dataframe(
-        periods=periods,
-        freq=freq,
-        include_history=include_history
-    )
+    # If start_date is provided, create custom future dataframe
+    if start_date:
+        start = pd.to_datetime(start_date)
+        future = pd.DataFrame({
+            'ds': pd.date_range(start=start, periods=periods, freq=freq)
+        })
+    else:
+        # Default: use today's date if it's after the training data
+        from datetime import datetime
+        today = pd.to_datetime(datetime.now().date())
+        last_training_date = model.history['ds'].max()
+        
+        if today > last_training_date:
+            # Start from today
+            future = pd.DataFrame({
+                'ds': pd.date_range(start=today, periods=periods, freq=freq)
+            })
+        else:
+            # Use Prophet's default (continue from training data)
+            future = model.make_future_dataframe(
+                periods=periods,
+                freq=freq,
+                include_history=include_history
+            )
     
     # Add regressors if provided
     if future_regressors is not None:

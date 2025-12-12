@@ -267,6 +267,17 @@ def cmd_predict(args):
     print("\n📥 Chargement des données...")
     df = load_dataset(str(dataset_path))
     
+    # Filter only CONSUMPTION outputs (like in the notebook)
+    # Exclude: destructions, entries (arrivals)
+    if 'type_sortie' in df.columns:
+        original_len = len(df)
+        df = df[df['type_sortie'] == 'CONSOMMATION'].copy()
+        print(f"🔍 Filtrage: {len(df):,} consommations (sur {original_len:,} lignes)")
+    elif 'type_operation' in df.columns:
+        original_len = len(df)
+        df = df[df['type_operation'] == 'SORTIE'].copy()
+        print(f"🔍 Filtrage: {len(df):,} sorties (sur {original_len:,} lignes)")
+    
     # Detect target column (quantite_consommee or quantite)
     if 'quantite_consommee' in df.columns:
         target_col = 'quantite_consommee'

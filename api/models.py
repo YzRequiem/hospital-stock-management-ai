@@ -34,7 +34,7 @@ class PredictionRequest(BaseModel):
     product: str = Field(
         ..., 
         description="Product name to predict",
-        example="Poulet Frais"
+        example="Poulet frais"
     )
     days: int = Field(
         default=30,
@@ -50,14 +50,19 @@ class PredictionRequest(BaseModel):
         default=False,
         description="Include external regressors (enriched dataset only)"
     )
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Start date for predictions (default: today)"
+    )
     
     class Config:
         schema_extra = {
             "example": {
-                "product": "Poulet Frais",
+                "product": "Poulet frais",
                 "days": 30,
                 "dataset": "enriched",
-                "include_regressors": False
+                "include_regressors": False,
+                "start_date": "2025-12-11"
             }
         }
 
@@ -137,7 +142,7 @@ class PredictionResponse(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                "product": "Poulet Frais",
+                "product": "Poulet frais",
                 "dataset": "enriched",
                 "train_days": 1460,
                 "prediction_days": 30,

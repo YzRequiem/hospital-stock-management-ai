@@ -330,6 +330,13 @@ async def predict(request: PredictionRequest):
         # Load and prepare data
         df = load_dataset(str(dataset_path))
         
+        # Filter only CONSUMPTION outputs (like in the notebook)
+        # Exclude: destructions, entries (arrivals)
+        if 'type_sortie' in df.columns:
+            df = df[df['type_sortie'] == 'CONSOMMATION'].copy()
+        elif 'type_operation' in df.columns:
+            df = df[df['type_operation'] == 'SORTIE'].copy()
+        
         # Detect target column (quantite_consommee or quantite)
         if 'quantite_consommee' in df.columns:
             target_col = 'quantite_consommee'
@@ -381,8 +388,9 @@ async def predict(request: PredictionRequest):
         metrics = calculate_metrics(y_true, y_pred)
         quality_level, quality_desc = interpret_mape(metrics['mape'])
         
-        # Future predictions
-        future_preds = predict_future(model, periods=request.days)
+        # Future predictions - use start_date if provided, otherwise today
+        start_date_str = str(request.start_date) if request.start_date else None
+        future_preds = predict_future(model, periods=request.days, start_date=start_date_str)
         
         # Format predictions
         predictions = []
