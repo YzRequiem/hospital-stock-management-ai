@@ -11,10 +11,14 @@ Run with:
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import Optional
+from typing import Any, Dict, Optional
 from datetime import datetime
+import re
 import sys
+import unicodedata
 from pathlib import Path
+
+import pandas as pd
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -157,36 +161,125 @@ async def api_info():
 # Products Endpoints
 # =============================================================================
 
+
+def _slugify_product_name(name: str) -> str:
+    """Convert a product name into a stable API identifier."""
+    normalized = unicodedata.normalize("NFKD", name)
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-zA-Z0-9]+", "_", ascii_text.lower()).strip("_")
+    return slug or "unknown_product"
+
+
+def _safe_mode(series):
+    """Return the most frequent non-null value from a Series."""
+    non_null = series.dropna()
+    if non_null.empty:
+        return None
+    modes = non_null.mode()
+    if modes.empty:
+        return None
+    return modes.iloc[0]
+
+
+def _infer_priority_from_dlc(dlc_days: int) -> str:
+    """Infer a priority level from shelf life when no config exists."""
+    if dlc_days and dlc_days <= 7:
+        return "high"
+    if dlc_days and dlc_days <= 30:
+        return "medium"
+    return "low"
+
+
+def _load_product_config_index() -> Dict[str, Dict[str, Any]]:
+    """Load configured product metadata indexed by stable slug."""
+    try:
+        config = load_yaml_config("products")
+    except FileNotFoundError:
+        return {}
+
+    products_data = config.get("products", {})
+    indexed_config: Dict[str, Dict[str, Any]] = {}
+
+    for config_key, product_data in products_data.items():
+        name = product_data.get("name", config_key)
+        indexed_config[_slugify_product_name(config_key)] = product_data
+        indexed_config[_slugify_product_name(name)] = product_data
+
+    return indexed_config
+
+
+def _build_products_from_dataset(dataset: DatasetEnum = DatasetEnum.enriched) -> list[ProductInfo]:
+    """Build product metadata from the selected CSV dataset."""
+    dataset_file = DATASETS.get(dataset.value)
+    if not dataset_file:
+        raise HTTPException(status_code=404, detail=f"Dataset '{dataset.value}' not configured")
+
+    dataset_path = get_dataset_path(dataset_file)
+    if not dataset_path.exists():
+        raise HTTPException(status_code=404, detail=f"Dataset file not found: {dataset_file}")
+
+    df = load_dataset(str(dataset_path))
+
+    if 'nom_produit' in df.columns:
+        product_col = 'nom_produit'
+    elif 'produit' in df.columns:
+        product_col = 'produit'
+    else:
+        raise HTTPException(status_code=500, detail="No product column found in dataset")
+
+    product_config = _load_product_config_index()
+    products: list[ProductInfo] = []
+
+    for product_name, product_df in df.groupby(product_col, dropna=True):
+        if not isinstance(product_name, str) or not product_name.strip():
+            continue
+
+        product_slug = _slugify_product_name(product_name)
+        config_data = product_config.get(product_slug, {})
+
+        inferred_category = _safe_mode(product_df['type_produit']) if 'type_produit' in product_df.columns else None
+        inferred_unit = _safe_mode(product_df['unite']) if 'unite' in product_df.columns else None
+
+        inferred_dlc_days = None
+        if 'date' in product_df.columns and 'date_expiration' in product_df.columns:
+            date_values = pd.to_datetime(product_df['date'], errors='coerce')
+            expiration_values = pd.to_datetime(product_df['date_expiration'], errors='coerce')
+            delta_days = (expiration_values - date_values).dt.days
+            delta_days = delta_days[delta_days.notna() & (delta_days >= 0)]
+            if not delta_days.empty:
+                inferred_dlc_days = int(round(float(delta_days.median())))
+
+        dlc_days = config_data.get('dlc_days')
+        if dlc_days is None:
+            dlc_days = inferred_dlc_days or 0
+
+        priority = config_data.get('priority') or _infer_priority_from_dlc(int(dlc_days))
+
+        products.append(ProductInfo(
+            id=product_slug,
+            name=product_name,
+            category=config_data.get('category') or inferred_category or 'unknown',
+            dlc_days=int(dlc_days),
+            priority=priority,
+            unit=config_data.get('unit') or inferred_unit or 'kg',
+            min_stock=config_data.get('min_stock'),
+            max_stock=config_data.get('max_stock'),
+            reorder_point=config_data.get('reorder_point')
+        ))
+
+    products.sort(key=lambda product: product.name.lower())
+    return products
+
 @app.get(
     "/products",
     response_model=ProductsResponse,
     summary="List all products",
     tags=["Products"]
 )
-async def list_products():
-    """Get list of all configured products."""
-    try:
-        config = load_yaml_config("products")
-        products_data = config.get("products", {})
-        
-        products = []
-        for key, prod in products_data.items():
-            products.append(ProductInfo(
-                id=key,
-                name=prod.get("name", key),
-                category=prod.get("category", "unknown"),
-                dlc_days=prod.get("dlc_days", 0),
-                priority=prod.get("priority", "medium"),
-                unit=prod.get("unit", "kg"),
-                min_stock=prod.get("min_stock"),
-                max_stock=prod.get("max_stock"),
-                reorder_point=prod.get("reorder_point")
-            ))
-        
-        return ProductsResponse(count=len(products), products=products)
-    
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Products configuration not found")
+async def list_products(dataset: DatasetEnum = Query(default=DatasetEnum.enriched)):
+    """Get products actually present in the selected CSV dataset."""
+    products = _build_products_from_dataset(dataset)
+    return ProductsResponse(count=len(products), products=products)
 
 
 @app.get(
@@ -196,29 +289,15 @@ async def list_products():
     tags=["Products"]
 )
 async def get_product(product_id: str):
-    """Get details for a specific product."""
-    try:
-        config = load_yaml_config("products")
-        products_data = config.get("products", {})
-        
-        if product_id not in products_data:
-            raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-        
-        prod = products_data[product_id]
-        return ProductInfo(
-            id=product_id,
-            name=prod.get("name", product_id),
-            category=prod.get("category", "unknown"),
-            dlc_days=prod.get("dlc_days", 0),
-            priority=prod.get("priority", "medium"),
-            unit=prod.get("unit", "kg"),
-            min_stock=prod.get("min_stock"),
-            max_stock=prod.get("max_stock"),
-            reorder_point=prod.get("reorder_point")
-        )
-    
-    except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Products configuration not found")
+    """Get details for a specific dataset product."""
+    normalized_product_id = _slugify_product_name(product_id)
+    products = _build_products_from_dataset(DatasetEnum.enriched)
+
+    for product in products:
+        if product.id == normalized_product_id:
+            return product
+
+    raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
 
 
 # =============================================================================
