@@ -111,6 +111,63 @@ def _build_model_input_example(train_df: pd.DataFrame) -> Optional[pd.DataFrame]
     return train_df[input_columns].head(5).copy()
 
 
+def _get_dataset_display_name(dataset_name: str, dataset_path: Path) -> str:
+    """Build a readable dataset name for MLflow inputs."""
+    if isinstance(dataset_path, Path) and dataset_path.name:
+        return dataset_path.name
+    return dataset_name
+
+
+def _get_dataset_source(dataset_path: Path) -> str:
+    """Return a stable dataset source string for MLflow dataset tracking."""
+    resolved_path = dataset_path.resolve()
+    try:
+        return resolved_path.as_uri()
+    except ValueError:
+        return resolved_path.as_posix()
+
+
+def _build_dataset_input_frame(
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+) -> Optional[pd.DataFrame]:
+    """Combine the modeling data into a single MLflow dataset input."""
+    frames = []
+    for frame in (train_df, test_df):
+        if isinstance(frame, pd.DataFrame) and not frame.empty:
+            frames.append(frame.copy())
+
+    if not frames:
+        return None
+
+    return pd.concat(frames, ignore_index=True)
+
+
+def _log_input_dataset(
+    dataset_name: str,
+    dataset_path: Path,
+    train_df: pd.DataFrame,
+    test_df: pd.DataFrame,
+) -> None:
+    """Log the input dataset using MLflow's native dataset tracking APIs."""
+    dataset_frame = _build_dataset_input_frame(train_df, test_df)
+    if dataset_frame is None:
+        return
+
+    if not hasattr(mlflow, "data") or not hasattr(mlflow, "log_input"):
+        return
+
+    dataset_kwargs: Dict[str, Any] = {
+        "source": _get_dataset_source(dataset_path),
+        "name": _get_dataset_display_name(dataset_name, dataset_path),
+    }
+    if "y" in dataset_frame.columns:
+        dataset_kwargs["targets"] = "y"
+
+    dataset = mlflow.data.from_pandas(dataset_frame, **dataset_kwargs)
+    mlflow.log_input(dataset, context="training")
+
+
 def _ensure_experiment_ready(experiment_name: str) -> None:
     """Restore a deleted experiment before activating it when possible."""
     try:
@@ -207,6 +264,8 @@ def log_prediction_run(
                 "command": "predict",
                 "model_type": "Prophet",
                 "dataset": dataset_name,
+                "dataset_display_name": _get_dataset_display_name(dataset_name, dataset_path),
+                "dataset_source": _get_dataset_source(dataset_path),
                 "product_name": product_name,
                 "horizon_days": horizon_days,
                 "dataset_path": dataset_path,
@@ -237,6 +296,18 @@ def log_prediction_run(
                 },
                 "run_context.json",
             )
+
+            try:
+                _log_input_dataset(
+                    dataset_name=dataset_name,
+                    dataset_path=dataset_path,
+                    train_df=train_df,
+                    test_df=test_df,
+                )
+                mlflow.set_tag("input_dataset_logged", "true")
+            except Exception as dataset_exc:
+                mlflow.set_tag("input_dataset_logged", "false")
+                mlflow.set_tag("dataset_logging_error", str(dataset_exc)[:500])
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_path = Path(temp_dir)
