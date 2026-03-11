@@ -54,6 +54,18 @@ class PredictionRequest(BaseModel):
         default=None,
         description="Start date for predictions (default: today)"
     )
+    enable_mlflow: bool = Field(
+        default=False,
+        description="Enable MLflow tracking for this prediction request"
+    )
+    mlflow_experiment: Optional[str] = Field(
+        default="hospital-stock-api",
+        description="MLflow experiment name when tracking is enabled"
+    )
+    mlflow_tracking_uri: Optional[str] = Field(
+        default=None,
+        description="Optional MLflow tracking URI (default: sqlite:///mlflow.db)"
+    )
     
     class Config:
         schema_extra = {
@@ -62,7 +74,10 @@ class PredictionRequest(BaseModel):
                 "days": 30,
                 "dataset": "enriched",
                 "include_regressors": False,
-                "start_date": "2025-12-11"
+                "start_date": "2025-12-11",
+                "enable_mlflow": True,
+                "mlflow_experiment": "hospital-stock-api",
+                "mlflow_tracking_uri": "sqlite:///mlflow.db"
             }
         }
 
@@ -128,6 +143,16 @@ class QualityAssessment(BaseModel):
     description: str = Field(..., description="Human-readable description")
 
 
+class TrackingResponse(BaseModel):
+    """MLflow tracking information for a prediction run."""
+    enabled: bool = False
+    logged: bool = False
+    experiment_name: Optional[str] = None
+    tracking_uri: Optional[str] = None
+    run_id: Optional[str] = None
+    run_name: Optional[str] = None
+
+
 class PredictionResponse(BaseModel):
     """Response model for predictions."""
     product: str
@@ -137,6 +162,7 @@ class PredictionResponse(BaseModel):
     metrics: MetricsResponse
     quality: QualityAssessment
     predictions: List[PredictionPoint]
+    tracking: Optional[TrackingResponse] = None
     generated_at: datetime = Field(default_factory=datetime.now)
     
     class Config:
@@ -159,6 +185,14 @@ class PredictionResponse(BaseModel):
                 "predictions": [
                     {"date": "2025-01-01", "predicted": 45.5, "lower_bound": 38.2, "upper_bound": 52.8}
                 ],
+                "tracking": {
+                    "enabled": True,
+                    "logged": True,
+                    "experiment_name": "hospital-stock-api",
+                    "tracking_uri": "sqlite:///project/mlflow.db",
+                    "run_id": "1234567890abcdef",
+                    "run_name": "predict-poulet-frais-enriched"
+                },
                 "generated_at": "2025-12-10T14:30:00"
             }
         }

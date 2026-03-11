@@ -32,7 +32,15 @@ from config import (
 )
 from src.data_loader import load_dataset, prepare_prophet_data, train_test_split
 from src.metrics import calculate_metrics, print_metrics, interpret_mape
-from src.model import train_prophet_model, predict, predict_future, check_prophet_available
+from src.model import (
+    train_prophet_model,
+    predict,
+    predict_future,
+    check_prophet_available,
+    model_summary,
+)
+from src.mlflow_utils import check_mlflow_available, log_prediction_run
+from src.mlflow_utils import get_default_tracking_uri
 
 
 def interactive_select(options: list, prompt: str = "Sélectionnez une option") -> str:
@@ -250,6 +258,10 @@ def cmd_predict(args):
     print(f"\n📦 Produit: {product_name}")
     print(f"📅 Horizon: {days} jours")
     print(f"📊 Dataset: {dataset_key}")
+    if args.mlflow:
+        tracking_uri = args.mlflow_tracking_uri or get_default_tracking_uri()
+        print(f"🧪 MLflow: activé ({args.mlflow_experiment})")
+        print(f"🗄️ Backend MLflow: {tracking_uri}")
     
     # Get dataset path
     if dataset_key in DATASETS:
@@ -348,6 +360,8 @@ def cmd_predict(args):
     
     if days > 10:
         print(f"... ({days - 10} jours supplémentaires)")
+
+    results_dir = None
     
     # Save results if requested
     if args.save:
@@ -364,6 +378,29 @@ def cmd_predict(args):
             json.dump(metrics, f, indent=2)
         
         print(f"\n💾 Résultats sauvegardés: {results_dir}")
+
+    if args.mlflow:
+        if not check_mlflow_available():
+            print("\n⚠️ MLflow n'est pas installé. Exécutez: pip install -r requirements.txt")
+        else:
+            tracked = log_prediction_run(
+                product_name=product_name,
+                dataset_name=dataset_key,
+                horizon_days=days,
+                dataset_path=dataset_path,
+                train_df=train,
+                test_df=test,
+                test_predictions=predictions_test,
+                future_predictions=future_preds,
+                metrics=metrics,
+                prophet_settings=settings.to_dict().get('prophet', {}),
+                model_details=model_summary(model),
+                experiment_name=args.mlflow_experiment,
+                tracking_uri=args.mlflow_tracking_uri or get_default_tracking_uri(),
+                saved_results_dir=results_dir,
+            )
+            if tracked:
+                print("📍 Run MLflow enregistré avec succès")
     
     print("\n✅ Prédiction terminée!")
     return 0
@@ -608,6 +645,21 @@ Exemples:
         '--save', '-s',
         action='store_true',
         help='Sauvegarder les résultats'
+    )
+    predict_parser.add_argument(
+        '--mlflow',
+        action='store_true',
+        help='Enregistrer le run dans MLflow'
+    )
+    predict_parser.add_argument(
+        '--mlflow-experiment',
+        default='hospital-stock-prediction',
+        help='Nom de l\'expérience MLflow'
+    )
+    predict_parser.add_argument(
+        '--mlflow-tracking-uri',
+        default=None,
+        help='Tracking URI MLflow (défaut: sqlite:///mlflow.db)'
     )
     predict_parser.set_defaults(func=cmd_predict)
     

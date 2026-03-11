@@ -25,6 +25,7 @@ from api.models import (
     PredictionPoint,
     MetricsResponse,
     QualityAssessment,
+    TrackingResponse,
     AnalysisRequest,
     AnalysisResponse,
     DatasetInfo,
@@ -40,6 +41,7 @@ from config import (
     settings,
     load_yaml_config,
     get_dataset_path,
+    PROJECT_ROOT,
     DATASETS,
     REGRESSORS
 )
@@ -47,7 +49,8 @@ from config import (
 from src import __version__
 from src.data_loader import load_dataset, prepare_prophet_data, train_test_split, get_dataset_info
 from src.metrics import calculate_metrics, interpret_mape
-from src.model import check_prophet_available
+from src.model import check_prophet_available, model_summary
+from src.mlflow_utils import check_mlflow_available, get_default_tracking_uri, log_prediction_run
 
 # =============================================================================
 # Application Setup
@@ -327,6 +330,14 @@ async def predict(request: PredictionRequest):
         raise HTTPException(status_code=404, detail=f"Dataset file not found")
     
     try:
+        tracking_uri = request.mlflow_tracking_uri or get_default_tracking_uri(PROJECT_ROOT)
+        tracking_info = TrackingResponse(
+            enabled=request.enable_mlflow,
+            logged=False,
+            experiment_name=request.mlflow_experiment if request.enable_mlflow else None,
+            tracking_uri=tracking_uri if request.enable_mlflow else None,
+        )
+
         # Load and prepare data
         df = load_dataset(str(dataset_path))
         
@@ -391,6 +402,38 @@ async def predict(request: PredictionRequest):
         # Future predictions - use start_date if provided, otherwise today
         start_date_str = str(request.start_date) if request.start_date else None
         future_preds = predict_future(model, periods=request.days, start_date=start_date_str)
+
+        if request.enable_mlflow and check_mlflow_available():
+            tracked = log_prediction_run(
+                product_name=request.product,
+                dataset_name=request.dataset.value,
+                horizon_days=request.days,
+                dataset_path=dataset_path,
+                train_df=train,
+                test_df=test,
+                test_predictions=predictions_test[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].copy(),
+                future_predictions=future_preds[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].copy(),
+                metrics=metrics,
+                prophet_settings={
+                    **settings.to_dict().get('prophet', {}),
+                    'include_regressors': request.include_regressors,
+                },
+                model_details=model_summary(model),
+                experiment_name=request.mlflow_experiment or 'hospital-stock-api',
+                tracking_uri=tracking_uri,
+                saved_results_dir=None,
+            )
+
+            tracking_info.logged = tracked
+            if tracked:
+                import mlflow
+
+                active_run = mlflow.last_active_run()
+                if active_run is not None:
+                    tracking_info.run_id = active_run.info.run_id
+                    tracking_info.run_name = active_run.data.tags.get('mlflow.runName')
+        elif request.enable_mlflow:
+            tracking_info.logged = False
         
         # Format predictions
         predictions = []
@@ -418,6 +461,7 @@ async def predict(request: PredictionRequest):
                 description=quality_desc
             ),
             predictions=predictions,
+            tracking=tracking_info,
             generated_at=datetime.now()
         )
     
@@ -436,13 +480,17 @@ async def predict(request: PredictionRequest):
 async def quick_predict(
     product: str,
     days: int = Query(default=30, ge=1, le=365),
-    dataset: DatasetEnum = Query(default=DatasetEnum.enriched)
+    dataset: DatasetEnum = Query(default=DatasetEnum.enriched),
+    enable_mlflow: bool = Query(default=False),
+    mlflow_experiment: Optional[str] = Query(default="hospital-stock-api")
 ):
     """Quick prediction endpoint with URL parameters."""
     request = PredictionRequest(
         product=product,
         days=days,
-        dataset=dataset
+        dataset=dataset,
+        enable_mlflow=enable_mlflow,
+        mlflow_experiment=mlflow_experiment,
     )
     return await predict(request)
 

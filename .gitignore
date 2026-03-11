@@ -56,6 +56,11 @@ Desktop.ini
 results/*/
 !results/.gitkeep
 
+# MLflow local tracking artifacts
+mlflow.db
+mlruns/
+mlruns_legacy_archive/
+
 # Data files (optional - uncomment if datasets should not be versioned)
 # data/*.csv
 

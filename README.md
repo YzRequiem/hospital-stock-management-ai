@@ -180,6 +180,16 @@ curl -X POST "http://localhost:8000/predict" \
   -d '{"product": "Poulet Frais", "days": 30}'
 ```
 
+**Exemple avec tracking MLflow :**
+
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"product": "Poulet Frais", "days": 30, "dataset": "enriched", "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
+```
+
+La réponse contient alors un bloc `tracking` avec le statut du logging, le `run_id`, le `run_name` et le `tracking_uri`.
+
 ### Docker
 
 ```bash
@@ -204,6 +214,26 @@ code notebooks/Analyse_Mont_Vert_ENRICHI.ipynb
 # Ou lancer Jupyter
 jupyter notebook
 ```
+
+### MLflow
+
+Le projet peut tracer les expériences Prophet via MLflow depuis la CLI, le notebook et l'API FastAPI.
+
+```bash
+# Lancer l'interface locale avec le backend SQLite
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+
+# Enregistrer une prédiction dans MLflow
+python main.py predict --product "Poulet Frais" --days 30 --save --mlflow
+
+# Variante avec expérience et backend explicites
+python main.py predict --product "Poulet Frais" --days 30 --mlflow --mlflow-experiment "prophet-enriched" --mlflow-tracking-uri "sqlite:///mlflow.db"
+
+# Via l'API FastAPI
+curl -X POST "http://localhost:8000/predict" -H "Content-Type: application/json" -d '{"product": "Poulet Frais", "days": 30, "dataset": "enriched", "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
+```
+
+Par défaut, le backend de tracking est maintenant `sqlite:///mlflow.db`, ce qui évite le file store local déprécié. Chaque run enregistre les paramètres Prophet, les métriques, les prédictions test/futures et les artefacts sauvegardés dans `results/` quand `--save` est utilisé.
 
 ## 🧪 Tests
 
@@ -239,15 +269,16 @@ Le modèle Prophet est évalué avec :
 
 ## 🛠️ Technologies
 
-| Catégorie         | Technologies                       |
-| ----------------- | ---------------------------------- |
-| **Langage**       | Python 3.11+                       |
-| **Data Science**  | pandas, numpy, matplotlib, seaborn |
-| **ML/Prédiction** | Prophet (Facebook)                 |
-| **API**           | FastAPI, Pydantic, uvicorn         |
-| **Tests**         | pytest, pytest-cov                 |
-| **Config**        | YAML, dataclasses                  |
-| **Container**     | Docker, docker-compose             |
+| Catégorie               | Technologies                       |
+| ----------------------- | ---------------------------------- |
+| **Langage**             | Python 3.11+                       |
+| **Data Science**        | pandas, numpy, matplotlib, seaborn |
+| **ML/Prédiction**       | Prophet (Facebook)                 |
+| **Experiment Tracking** | MLflow                             |
+| **API**                 | FastAPI, Pydantic, uvicorn         |
+| **Tests**               | pytest, pytest-cov                 |
+| **Config**              | YAML, dataclasses                  |
+| **Container**           | Docker, docker-compose             |
 
 ## 📁 Modules
 
