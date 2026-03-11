@@ -40,7 +40,7 @@ from src.model import (
     model_summary,
 )
 from src.mlflow_utils import check_mlflow_available, log_prediction_run
-from src.mlflow_utils import get_default_tracking_uri
+from src.mlflow_utils import get_default_tracking_uri, normalize_tracking_uri
 
 
 def interactive_select(options: list, prompt: str = "Sélectionnez une option") -> str:
@@ -259,7 +259,7 @@ def cmd_predict(args):
     print(f"📅 Horizon: {days} jours")
     print(f"📊 Dataset: {dataset_key}")
     if args.mlflow:
-        tracking_uri = args.mlflow_tracking_uri or get_default_tracking_uri()
+        tracking_uri = normalize_tracking_uri(args.mlflow_tracking_uri)
         print(f"🧪 MLflow: activé ({args.mlflow_experiment})")
         print(f"🗄️ Backend MLflow: {tracking_uri}")
     
@@ -396,7 +396,7 @@ def cmd_predict(args):
                 prophet_settings=settings.to_dict().get('prophet', {}),
                 model_details=model_summary(model),
                 experiment_name=args.mlflow_experiment,
-                tracking_uri=args.mlflow_tracking_uri or get_default_tracking_uri(),
+                tracking_uri=normalize_tracking_uri(args.mlflow_tracking_uri),
                 saved_results_dir=results_dir,
             )
             if tracked:

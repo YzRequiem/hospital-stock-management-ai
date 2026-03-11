@@ -36,6 +36,35 @@ def get_default_tracking_uri(project_root: Optional[Path] = None) -> str:
     return f"sqlite:///{db_path.as_posix()}"
 
 
+def normalize_tracking_uri(
+    tracking_uri: Optional[str],
+    project_root: Optional[Path] = None,
+) -> str:
+    """Normalize user-provided MLflow tracking URIs and fallback placeholders."""
+    if project_root is None:
+        project_root = Path(__file__).resolve().parent.parent
+
+    if tracking_uri is None:
+        return get_default_tracking_uri(project_root)
+
+    cleaned = tracking_uri.strip()
+    if cleaned.lower() in {"", "string", "none", "null", "undefined"}:
+        return get_default_tracking_uri(project_root)
+
+    sqlite_prefix = "sqlite:///"
+    if cleaned.startswith(sqlite_prefix):
+        sqlite_path = cleaned[len(sqlite_prefix):]
+        is_windows_absolute = len(sqlite_path) > 1 and sqlite_path[1] == ":"
+        if sqlite_path and not Path(sqlite_path).is_absolute() and not is_windows_absolute:
+            resolved_db_path = (project_root / sqlite_path).resolve()
+            return f"sqlite:///{resolved_db_path.as_posix()}"
+
+    if "://" not in cleaned:
+        return str((project_root / cleaned).resolve())
+
+    return cleaned
+
+
 def _serialize_param(value: Any) -> str:
     """Convert values to MLflow-compatible parameter strings."""
     if isinstance(value, Path):
@@ -77,7 +106,7 @@ def log_prediction_run(
         return False
 
     try:
-        mlflow.set_tracking_uri(tracking_uri or get_default_tracking_uri())
+        mlflow.set_tracking_uri(normalize_tracking_uri(tracking_uri))
 
         mlflow.set_experiment(experiment_name)
 

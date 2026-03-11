@@ -50,7 +50,12 @@ from src import __version__
 from src.data_loader import load_dataset, prepare_prophet_data, train_test_split, get_dataset_info
 from src.metrics import calculate_metrics, interpret_mape
 from src.model import check_prophet_available, model_summary
-from src.mlflow_utils import check_mlflow_available, get_default_tracking_uri, log_prediction_run
+from src.mlflow_utils import (
+    check_mlflow_available,
+    get_default_tracking_uri,
+    log_prediction_run,
+    normalize_tracking_uri,
+)
 
 # =============================================================================
 # Application Setup
@@ -330,7 +335,7 @@ async def predict(request: PredictionRequest):
         raise HTTPException(status_code=404, detail=f"Dataset file not found")
     
     try:
-        tracking_uri = request.mlflow_tracking_uri or get_default_tracking_uri(PROJECT_ROOT)
+        tracking_uri = normalize_tracking_uri(request.mlflow_tracking_uri, PROJECT_ROOT)
         tracking_info = TrackingResponse(
             enabled=request.enable_mlflow,
             logged=False,

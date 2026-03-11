@@ -60,6 +60,7 @@ results/*/
 mlflow.db
 mlruns/
 mlruns_legacy_archive/
+string/
 
 # Data files (optional - uncomment if datasets should not be versioned)
 # data/*.csv

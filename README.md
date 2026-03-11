@@ -11,6 +11,12 @@
 
 Projet de Master EISI utilisant l'intelligence artificielle pour prédire la consommation de produits hospitaliers et optimiser la gestion des stocks. L'objectif est de réduire le gaspillage alimentaire et prévenir les ruptures de stock.
 
+Le projet couvre désormais trois usages complémentaires:
+
+- une CLI pour lancer des prédictions et sauvegarder les résultats
+- une API FastAPI pour exposer les prédictions et le tracking MLflow
+- un notebook enrichi Prophet qui produit aussi une recommandation opérationnelle de commande
+
 ### 🎯 Résultats attendus
 
 - ✅ Réduction de **30%** du gaspillage alimentaire
@@ -45,6 +51,7 @@ hospital-stock-management-ai/
 │   ├── data_loader.py        # Chargement données
 │   ├── model.py              # Modèle Prophet
 │   ├── metrics.py            # Calcul métriques
+│   ├── mlflow_utils.py       # Tracking MLflow partagé
 │   ├── visualization.py      # Graphiques
 │   └── cli.py                # Interface CLI
 ├── 📁 tests/                  # Tests unitaires
@@ -70,7 +77,7 @@ hospital-stock-management-ai/
 | **Réaliste**   | 2022-2024 | 24,000 | 15       | FIFO + gestion réaliste   |
 | **Enrichi** ⭐ | 2020-2024 | 85,809 | 22       | **Prophet + régresseurs** |
 
-**Recommandé** : Dataset enrichi avec 7 régresseurs externes (température, occupation, patients, épidémies, jours fériés, COVID).
+**Recommandé** : Dataset enrichi avec variables contextuelles et historique 2020-2024 pour les analyses Prophet avancées.
 
 📚 Documentation : [data/README_DATASETS.md](data/README_DATASETS.md)
 
@@ -132,6 +139,12 @@ python main.py predict --product "Poulet Frais" --days 30
 
 # Prédiction avec sauvegarde
 python main.py predict -p "Poulet Frais" -d 30 --save
+
+# Prédiction avec tracking MLflow
+python main.py predict -p "Poulet Frais" -d 30 --save --mlflow
+
+# Prédiction avec expérience MLflow explicite
+python main.py predict -p "Poulet Frais" -d 30 --mlflow --mlflow-experiment "hospital-stock-prediction"
 
 # Analyser un dataset spécifique
 python main.py analyze --dataset enriched
@@ -215,25 +228,47 @@ code notebooks/Analyse_Mont_Vert_ENRICHI.ipynb
 jupyter notebook
 ```
 
+Le notebook enrichi principal couvre:
+
+- entraînement Prophet avec régresseurs externes
+- évaluation sur jeu de test
+- prédictions futures sur 28 jours
+- recommandation de commande sur 7 jours avec stock disponible, stock de sécurité et hypothèse d'absence d'arrivage futur planifié
+- export des résultats dans `results/`
+- tracking MLflow dans l'expérience `prophet-notebook-enrichi`
+
 ### MLflow
 
 Le projet peut tracer les expériences Prophet via MLflow depuis la CLI, le notebook et l'API FastAPI.
 
 ```bash
-# Lancer l'interface locale avec le backend SQLite
-mlflow ui --backend-store-uri sqlite:///mlflow.db
+# Lancer l'interface locale avec le backend SQLite du projet
+mlflow ui --backend-store-uri "sqlite:///C:/Users/mxmle/project/final-project/mlflow.db" --host 127.0.0.1 --port 5000
 
 # Enregistrer une prédiction dans MLflow
 python main.py predict --product "Poulet Frais" --days 30 --save --mlflow
 
 # Variante avec expérience et backend explicites
-python main.py predict --product "Poulet Frais" --days 30 --mlflow --mlflow-experiment "prophet-enriched" --mlflow-tracking-uri "sqlite:///mlflow.db"
+python main.py predict --product "Poulet Frais" --days 30 --mlflow --mlflow-experiment "prophet-enriched" --mlflow-tracking-uri "sqlite:///C:/Users/mxmle/project/final-project/mlflow.db"
 
 # Via l'API FastAPI
 curl -X POST "http://localhost:8000/predict" -H "Content-Type: application/json" -d '{"product": "Poulet Frais", "days": 30, "dataset": "enriched", "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
 ```
 
-Par défaut, le backend de tracking est maintenant `sqlite:///mlflow.db`, ce qui évite le file store local déprécié. Chaque run enregistre les paramètres Prophet, les métriques, les prédictions test/futures et les artefacts sauvegardés dans `results/` quand `--save` est utilisé.
+Interface disponible sur `http://127.0.0.1:5000`.
+
+Par défaut, le backend de tracking est maintenant `sqlite:///C:/Users/mxmle/project/final-project/mlflow.db`, ce qui évite le file store local déprécié. Chaque run enregistre:
+
+- les paramètres métier et Prophet
+- les métriques `mae`, `mape`, `rmse`, `r2`
+- les prédictions de test et futures
+- les artefacts générés dans `results/` quand `--save` est utilisé
+
+La CLI, l'API et le notebook n'utilisent pas forcément la même expérience:
+
+- CLI: `hospital-stock-prediction` par défaut
+- API: `hospital-stock-api` par défaut
+- notebook enrichi: `prophet-notebook-enrichi`
 
 ## 🧪 Tests
 
@@ -293,6 +328,12 @@ Le modèle Prophet est évalué avec :
 - `train_prophet_model()` - Entraînement avec saisonnalité
 - `predict()` - Prédictions sur données existantes
 - `predict_future()` - Prédictions futures
+
+### `src/mlflow_utils.py`
+
+- `get_default_tracking_uri()` - Backend SQLite par défaut du projet
+- `check_mlflow_available()` - Vérification disponibilité MLflow
+- `log_prediction_run()` - Logging partagé CLI, API et notebook
 
 ### `src/metrics.py`
 
