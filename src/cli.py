@@ -398,6 +398,11 @@ def cmd_predict(args):
                 experiment_name=args.mlflow_experiment,
                 tracking_uri=normalize_tracking_uri(args.mlflow_tracking_uri),
                 saved_results_dir=results_dir,
+                model=model,
+                run_tags={
+                    'source': 'cli',
+                    'save_results': bool(args.save),
+                },
             )
             if tracked:
                 print("📍 Run MLflow enregistré avec succès")

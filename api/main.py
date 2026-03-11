@@ -427,6 +427,12 @@ async def predict(request: PredictionRequest):
                 experiment_name=request.mlflow_experiment or 'hospital-stock-api',
                 tracking_uri=tracking_uri,
                 saved_results_dir=None,
+                model=model,
+                run_tags={
+                    'source': 'api',
+                    'include_regressors': request.include_regressors,
+                    'start_date': start_date_str,
+                },
             )
 
             tracking_info.logged = tracked

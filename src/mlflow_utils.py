@@ -85,6 +85,79 @@ def _log_params(params: Dict[str, Any]) -> None:
         mlflow.log_param(key, _serialize_param(value))
 
 
+def _serialize_tag(value: Any) -> str:
+    """Convert values to MLflow-compatible tag strings."""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return _serialize_param(value)
+
+
+def _log_tags(tags: Dict[str, Any]) -> None:
+    """Log non-null tags with safe serialization."""
+    for key, value in tags.items():
+        if value is None:
+            continue
+        mlflow.set_tag(key, _serialize_tag(value))
+
+
+def _build_model_input_example(train_df: pd.DataFrame) -> Optional[pd.DataFrame]:
+    """Build a small input example compatible with Prophet inference."""
+    if not isinstance(train_df, pd.DataFrame) or "ds" not in train_df.columns:
+        return None
+
+    input_columns = ["ds"] + [
+        column for column in train_df.columns if column not in {"ds", "y"}
+    ]
+    return train_df[input_columns].head(5).copy()
+
+
+def _ensure_experiment_ready(experiment_name: str) -> None:
+    """Restore a deleted experiment before activating it when possible."""
+    try:
+        from mlflow.entities import ViewType
+        from mlflow.tracking import MlflowClient
+
+        client = MlflowClient()
+        experiments = client.search_experiments(
+            view_type=ViewType.ALL,
+            filter_string=f"name = '{experiment_name}'",
+            max_results=100,
+        )
+
+        for experiment in experiments:
+            if experiment.name != experiment_name:
+                continue
+            if experiment.lifecycle_stage == "deleted":
+                client.restore_experiment(experiment.experiment_id)
+            break
+    except Exception:
+        # Fallback to the default MLflow behavior if experiment inspection/restoration fails.
+        pass
+
+
+def _set_experiment_tags(experiment_name: str, tags: Dict[str, Any]) -> None:
+    """Persist experiment-level tags for easier filtering in the MLflow UI."""
+    try:
+        from mlflow.tracking import MlflowClient
+
+        client = MlflowClient()
+        experiment = client.get_experiment_by_name(experiment_name)
+        if experiment is None:
+            return
+
+        for key, value in tags.items():
+            if value is None:
+                continue
+            client.set_experiment_tag(
+                experiment.experiment_id,
+                key,
+                _serialize_tag(value),
+            )
+    except Exception:
+        # Experiment tags are useful metadata, but should not block run logging.
+        pass
+
+
 def log_prediction_run(
     product_name: str,
     dataset_name: str,
@@ -100,6 +173,8 @@ def log_prediction_run(
     experiment_name: str,
     tracking_uri: Optional[str] = None,
     saved_results_dir: Optional[Path] = None,
+    model: Optional[Any] = None,
+    run_tags: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Log a prediction run, metrics, and generated artifacts to MLflow."""
     if not MLFLOW_AVAILABLE:
@@ -108,16 +183,37 @@ def log_prediction_run(
     try:
         mlflow.set_tracking_uri(normalize_tracking_uri(tracking_uri))
 
+        _ensure_experiment_ready(experiment_name)
         mlflow.set_experiment(experiment_name)
+
+        _set_experiment_tags(
+            experiment_name,
+            {
+                "project": "hospital-stock-management-ai",
+                "model_type": "Prophet",
+                "model_flavor": "mlflow.prophet",
+                "dataset": dataset_name,
+                "source": (run_tags or {}).get("source"),
+                "analysis_type": (run_tags or {}).get("analysis_type"),
+                "tracking_backend": normalize_tracking_uri(tracking_uri),
+            },
+        )
 
         run_name = f"predict-{product_name.lower().replace(' ', '-')}-{dataset_name}"
 
         with mlflow.start_run(run_name=run_name):
-            mlflow.set_tags({
+            _log_tags({
                 "project": "hospital-stock-management-ai",
                 "command": "predict",
                 "model_type": "Prophet",
                 "dataset": dataset_name,
+                "product_name": product_name,
+                "horizon_days": horizon_days,
+                "dataset_path": dataset_path,
+                "has_regressors": bool(model_details.get("regressors")),
+                "regressor_count": len(model_details.get("regressors", [])),
+                "results_dir_present": bool(saved_results_dir and saved_results_dir.exists()),
+                **(run_tags or {}),
             })
 
             _log_params({
@@ -153,9 +249,21 @@ def log_prediction_run(
                 mlflow.log_artifacts(str(temp_path), artifact_path="outputs")
 
             if saved_results_dir and saved_results_dir.exists():
-                for artifact in saved_results_dir.iterdir():
-                    if artifact.is_file():
-                        mlflow.log_artifact(str(artifact), artifact_path="saved_results")
+                mlflow.log_artifacts(str(saved_results_dir), artifact_path="saved_results")
+
+            if model is not None:
+                try:
+                    import mlflow.prophet as mlflow_prophet
+
+                    mlflow_prophet.log_model(
+                        pr_model=model,
+                        name="prophet",
+                        input_example=_build_model_input_example(train_df),
+                    )
+                    mlflow.set_tag("model_logged", "true")
+                except Exception as model_exc:
+                    mlflow.set_tag("model_logged", "false")
+                    mlflow.set_tag("model_logging_error", str(model_exc)[:500])
 
         return True
 
