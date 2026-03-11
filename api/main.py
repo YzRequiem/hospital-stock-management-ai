@@ -23,6 +23,7 @@ from api.models import (
     PredictionRequest,
     PredictionResponse,
     PredictionPoint,
+    RecommendationResponse,
     MetricsResponse,
     QualityAssessment,
     TrackingResponse,
@@ -48,6 +49,7 @@ from config import (
 
 from src import __version__
 from src.data_loader import load_dataset, prepare_prophet_data, train_test_split, get_dataset_info
+from src.enriched_pipeline import run_enriched_notebook_analysis
 from src.metrics import calculate_metrics, interpret_mape
 from src.model import check_prophet_available, model_summary
 from src.mlflow_utils import (
@@ -345,6 +347,92 @@ async def predict(request: PredictionRequest):
 
         # Load and prepare data
         df = load_dataset(str(dataset_path))
+
+        start_date_str = str(request.start_date) if request.start_date else None
+        recommendation = None
+
+        if request.dataset == DatasetEnum.enriched and request.include_regressors:
+            analysis = run_enriched_notebook_analysis(
+                df=df,
+                product_name=request.product,
+                periods=request.days,
+                start_date=start_date_str,
+            )
+
+            train = analysis['train']
+            test = analysis['test']
+            predictions_test = analysis['predictions_test']
+            future_preds = analysis['predictions_futures']
+            metrics = analysis['metrics']
+            model = analysis['forecast_model']
+            recommendation = RecommendationResponse(**analysis['recommendation'])
+            quality_level, quality_desc = interpret_mape(metrics['mape'])
+
+            if request.enable_mlflow and check_mlflow_available():
+                tracked = log_prediction_run(
+                    product_name=request.product,
+                    dataset_name=request.dataset.value,
+                    horizon_days=request.days,
+                    dataset_path=dataset_path,
+                    train_df=train,
+                    test_df=test,
+                    test_predictions=predictions_test[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].copy(),
+                    future_predictions=future_preds[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].copy(),
+                    metrics=metrics,
+                    prophet_settings=analysis['prophet_settings'],
+                    model_details=model_summary(model),
+                    experiment_name=request.mlflow_experiment or 'hospital-stock-api',
+                    tracking_uri=tracking_uri,
+                    saved_results_dir=None,
+                    model=model,
+                    run_tags={
+                        'source': 'api',
+                        'pipeline': 'notebook-aligned-enriched',
+                        'include_regressors': request.include_regressors,
+                        'start_date': start_date_str,
+                    },
+                )
+
+                tracking_info.logged = tracked
+                if tracked:
+                    import mlflow
+
+                    active_run = mlflow.last_active_run()
+                    if active_run is not None:
+                        tracking_info.run_id = active_run.info.run_id
+                        tracking_info.run_name = active_run.data.tags.get('mlflow.runName')
+            elif request.enable_mlflow:
+                tracking_info.logged = False
+
+            predictions = []
+            for _, row in future_preds.iterrows():
+                predictions.append(PredictionPoint(
+                    date=row['ds'].date(),
+                    predicted=round(row['yhat'], 2),
+                    lower_bound=round(row['yhat_lower'], 2),
+                    upper_bound=round(row['yhat_upper'], 2)
+                ))
+
+            return PredictionResponse(
+                product=request.product,
+                dataset=request.dataset.value,
+                train_days=len(train),
+                prediction_days=request.days,
+                metrics=MetricsResponse(
+                    mae=round(metrics['mae'], 2),
+                    mape=round(metrics['mape'], 2),
+                    rmse=round(metrics['rmse'], 2),
+                    r2=round(metrics['r2'], 4)
+                ),
+                quality=QualityAssessment(
+                    level=quality_level,
+                    description=quality_desc
+                ),
+                predictions=predictions,
+                recommendation=recommendation,
+                tracking=tracking_info,
+                generated_at=datetime.now()
+            )
         
         # Filter only CONSUMPTION outputs (like in the notebook)
         # Exclude: destructions, entries (arrivals)
@@ -405,7 +493,6 @@ async def predict(request: PredictionRequest):
         quality_level, quality_desc = interpret_mape(metrics['mape'])
         
         # Future predictions - use start_date if provided, otherwise today
-        start_date_str = str(request.start_date) if request.start_date else None
         future_preds = predict_future(model, periods=request.days, start_date=start_date_str)
 
         if request.enable_mlflow and check_mlflow_available():
@@ -472,6 +559,7 @@ async def predict(request: PredictionRequest):
                 description=quality_desc
             ),
             predictions=predictions,
+            recommendation=recommendation,
             tracking=tracking_info,
             generated_at=datetime.now()
         )

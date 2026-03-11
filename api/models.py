@@ -153,6 +153,19 @@ class TrackingResponse(BaseModel):
     run_name: Optional[str] = None
 
 
+class RecommendationResponse(BaseModel):
+    """Operational order recommendation derived from the forecast."""
+    horizon_commande_jours: int
+    stock_disponible_actuel: float
+    arrivages_planifies: float
+    consommation_prevue_horizon: float
+    stock_securite: float
+    quantite_a_commander: float
+    couverture_estimee_jours: Optional[float] = None
+    hypothese: str
+    date_debut_prevision: Optional[date] = None
+
+
 class PredictionResponse(BaseModel):
     """Response model for predictions."""
     product: str
@@ -162,6 +175,7 @@ class PredictionResponse(BaseModel):
     metrics: MetricsResponse
     quality: QualityAssessment
     predictions: List[PredictionPoint]
+    recommendation: Optional[RecommendationResponse] = None
     tracking: Optional[TrackingResponse] = None
     generated_at: datetime = Field(default_factory=datetime.now)
     
@@ -185,6 +199,16 @@ class PredictionResponse(BaseModel):
                 "predictions": [
                     {"date": "2025-01-01", "predicted": 45.5, "lower_bound": 38.2, "upper_bound": 52.8}
                 ],
+                "recommendation": {
+                    "horizon_commande_jours": 7,
+                    "stock_disponible_actuel": 42.5,
+                    "arrivages_planifies": 0.0,
+                    "consommation_prevue_horizon": 85.3,
+                    "stock_securite": 24.4,
+                    "quantite_a_commander": 67.2,
+                    "couverture_estimee_jours": 3.5,
+                    "hypothese": "Aucun arrivage futur planifié disponible dans le dataset historique"
+                },
                 "tracking": {
                     "enabled": True,
                     "logged": True,
