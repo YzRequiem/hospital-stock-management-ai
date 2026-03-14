@@ -274,7 +274,7 @@ class TestConstants:
     def test_datasets_dict(self):
         """Test DATASETS constant."""
         assert isinstance(DATASETS, dict)
-        assert 'base' in DATASETS or 'enriched' in DATASETS or len(DATASETS) >= 0
+        assert DATASETS == {'enriched': 'dataset_stock_hopital_ENRICHI.csv'}
     
     def test_regressors_list(self):
         """Test REGRESSORS constant."""
@@ -298,7 +298,7 @@ class TestIntegration:
         settings = Settings()
         
         # Should be able to get dataset path
-        path = get_dataset_path(DATASETS.get('base', 'test.csv'))
+        path = get_dataset_path(DATASETS['enriched'])
         assert path.suffix == ".csv"
     
     def test_config_files_valid_yaml(self, config_dir):

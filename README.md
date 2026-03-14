@@ -36,8 +36,8 @@ hospital-stock-management-ai/
 │   ├── products.yaml         # Définition des produits
 │   └── model_params.yaml     # Paramètres Prophet
 ├── 📁 data/                   # Datasets
-│   ├── stock_hospital_*.csv  # 3 datasets disponibles
-│   ├── README_DATASETS.md    # Comparaison datasets
+│   ├── dataset_stock_hopital_ENRICHI.csv
+│   ├── README_DATASETS.md    # Description du dataset enrichi
 │   └── GUIDE_DATASET_ENRICHI.md
 ├── 📁 notebooks/              # Analyses Jupyter
 │   ├── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb
@@ -66,15 +66,13 @@ hospital-stock-management-ai/
 
 ## 📊 Données
 
-### 3 Datasets disponibles
+### Dataset disponible
 
 | Dataset        | Période   | Lignes | Colonnes | Usage                     |
 | -------------- | --------- | ------ | -------- | ------------------------- |
-| **Base**       | 2022-2024 | 51,839 | 15       | Analyses de base          |
-| **Réaliste**   | 2022-2024 | 24,000 | 15       | FIFO + gestion réaliste   |
 | **Enrichi** ⭐ | 2020-2024 | 85,809 | 22       | **Prophet + régresseurs** |
 
-**Recommandé** : Dataset enrichi avec variables contextuelles et historique 2020-2024 pour les analyses Prophet avancées.
+Le projet utilise désormais uniquement le dataset enrichi avec variables contextuelles et historique 2020-2024 pour les analyses Prophet avancées.
 
 📚 Documentation : [data/README_DATASETS.md](data/README_DATASETS.md)
 

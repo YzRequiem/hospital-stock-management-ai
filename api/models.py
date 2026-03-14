@@ -13,8 +13,6 @@ from enum import Enum
 
 class DatasetEnum(str, Enum):
     """Available datasets."""
-    base = "base"
-    realistic = "realistic"
     enriched = "enriched"
 
 
@@ -44,11 +42,11 @@ class PredictionRequest(BaseModel):
     )
     dataset: DatasetEnum = Field(
         default=DatasetEnum.enriched,
-        description="Dataset to use for training"
+        description="Dataset enrichi utilise pour l'entrainement"
     )
     include_regressors: bool = Field(
         default=False,
-        description="Include external regressors (enriched dataset only)"
+        description="Inclure les regresseurs externes du dataset enrichi"
     )
     start_date: Optional[date] = Field(
         default=None,
@@ -86,7 +84,7 @@ class AnalysisRequest(BaseModel):
     """Request model for dataset analysis."""
     dataset: DatasetEnum = Field(
         default=DatasetEnum.enriched,
-        description="Dataset to analyze"
+        description="Dataset enrichi a analyser"
     )
     product: Optional[str] = Field(
         default=None,

@@ -197,8 +197,6 @@ settings = Settings()
 
 # Available datasets
 DATASETS = {
-    "base": "dataset_stock_hopital.csv",
-    "realistic": "dataset_stock_hopital_REALISTE.csv",
     "enriched": "dataset_stock_hopital_ENRICHI.csv"
 }
 

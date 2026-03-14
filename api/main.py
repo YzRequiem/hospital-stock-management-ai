@@ -78,14 +78,12 @@ app = FastAPI(
     ## Fonctionnalités
     
     * **Prédictions** - Prévisions de consommation pour les produits alimentaires
-    * **Analyse** - Statistiques et exploration des datasets
+    * **Analyse** - Statistiques et exploration du dataset enrichi
     * **Produits** - Gestion des produits configurés
     * **Alertes** - Alertes de stock basées sur les prédictions
     
-    ## Datasets disponibles
-    
-    - `base` - Dataset de base (51k lignes)
-    - `realistic` - Dataset réaliste (24k lignes)  
+    ## Dataset disponible
+
     - `enriched` - Dataset enrichi avec régresseurs (85k lignes)
     """,
     version=__version__,
@@ -277,7 +275,7 @@ def _build_products_from_dataset(dataset: DatasetEnum = DatasetEnum.enriched) ->
     tags=["Products"]
 )
 async def list_products(dataset: DatasetEnum = Query(default=DatasetEnum.enriched)):
-    """Get products actually present in the selected CSV dataset."""
+    """Get products actually present in the enriched CSV dataset."""
     products = _build_products_from_dataset(dataset)
     return ProductsResponse(count=len(products), products=products)
 
@@ -310,7 +308,7 @@ async def get_product(product_id: str):
     tags=["Datasets"]
 )
 async def list_datasets():
-    """Get list of available datasets with their status."""
+    """Get the enriched dataset status."""
     datasets_info = []
     
     for key, filename in DATASETS.items():
@@ -393,8 +391,8 @@ async def predict(request: PredictionRequest):
     
     - **product**: Name of the product to predict
     - **days**: Number of days to predict (1-365)
-    - **dataset**: Dataset to use for training
-    - **include_regressors**: Include external factors (only for enriched dataset)
+    - **dataset**: Dataset enrichi utilise pour l'entrainement
+    - **include_regressors**: Include external factors from the enriched dataset
     """
     # Check Prophet availability
     if not check_prophet_available():
