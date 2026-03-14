@@ -9,7 +9,6 @@ Modules:
     - model: Prophet model training and prediction
     - metrics: Performance metrics calculation
     - visualization: Charts and plots generation
-    - cli: Command line interface
 """
 
 __version__ = "1.0.0"

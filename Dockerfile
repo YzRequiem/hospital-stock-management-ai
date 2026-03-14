@@ -73,6 +73,5 @@ CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 # -----------------------------------------------------------------------------
 # Alternative entrypoints (use with docker run --entrypoint)
 # -----------------------------------------------------------------------------
-# CLI:      docker run --entrypoint python hospital-stock-api main.py predict -p "Poulet Frais"
 # Shell:    docker run -it --entrypoint /bin/bash hospital-stock-api
 # Tests:    docker run --entrypoint pytest hospital-stock-api

@@ -360,19 +360,6 @@ def calculate_mape(y_true, y_pred, exclude_zeros=True):
 
 ## Exemples d'utilisation
 
-### Via la CLI
-
-```bash
-# Mode interactif complet
-python main.py predict
-# → Sélection dataset (↑↓)
-# → Sélection produit (↑↓)
-# → Nombre de jours
-
-# Mode direct
-python main.py predict -p "Poulet Frais" -d 30 -D enriched --save
-```
-
 ### Via l'API
 
 ```bash

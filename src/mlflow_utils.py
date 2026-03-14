@@ -2,7 +2,7 @@
 MLflow Tracking Utilities
 =========================
 
-Helpers to log prediction experiments without coupling the CLI to MLflow internals.
+Helpers to log prediction experiments without coupling API and notebook code to MLflow internals.
 """
 
 from __future__ import annotations

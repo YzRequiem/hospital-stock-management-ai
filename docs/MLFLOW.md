@@ -1,6 +1,6 @@
 # MLflow Integration
 
-Cette intégration ajoute un suivi d'expériences simple autour de la commande `predict`, du notebook Prophet et de l'API FastAPI.
+Cette intégration ajoute un suivi d'expériences simple autour du notebook Prophet et de l'API FastAPI.
 
 ## Ce qui est tracé
 
@@ -8,7 +8,7 @@ Cette intégration ajoute un suivi d'expériences simple autour de la commande `
 - paramètres Prophet issus de la configuration projet
 - métriques: `mae`, `mape`, `rmse`, `r2`
 - artefacts: `future_predictions.csv`, `test_predictions.csv`, `metrics.json`
-- fichiers additionnels du dossier `results/` si `--save` est activé
+- fichiers additionnels du dossier `results/`
 
 ## Installation
 
@@ -36,24 +36,6 @@ Si l'UI semble vide alors que les runs existent, vérifier les points suivants:
 - utiliser le chemin absolu dans `--backend-store-uri`
 - sélectionner la bonne expérience dans la barre latérale
 - recharger complètement la page après démarrage de l'UI
-
-## Utilisation
-
-```bash
-python main.py predict --product "Poulet Frais" --days 30 --mlflow
-```
-
-Avec un stockage local explicite:
-
-```bash
-python main.py predict --product "Poulet Frais" --days 30 --mlflow --mlflow-experiment "hospital-stock-prediction" --mlflow-tracking-uri "sqlite:///C:/Users/mxmle/project/final-project/mlflow.db"
-```
-
-La commande `predict` de la CLI accepte aussi:
-
-- `--save` pour joindre les artefacts générés dans `results/`
-- `--mlflow-experiment` pour changer le nom d'expérience
-- `--mlflow-tracking-uri` pour surcharger le backend par défaut
 
 ## Utilisation via API
 
@@ -89,5 +71,5 @@ Le notebook recharge explicitement `src.mlflow_utils` pour éviter les problème
 
 Les étapes suivantes logiques sont:
 
-- une commande de backtesting ou de comparaison de modèles
+- un endpoint ou un script de backtesting ou de comparaison de modèles
 - un vrai serveur MLflow partagé si plusieurs personnes doivent consulter les runs

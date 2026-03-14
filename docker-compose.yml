@@ -74,25 +74,6 @@ services:
       - hospital-network
 
   # ---------------------------------------------------------------------------
-  # CLI Service - For running commands
-  # ---------------------------------------------------------------------------
-  cli:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: hospital-stock-api:latest
-    container_name: hospital-stock-cli
-    volumes:
-      - ./data:/app/data:ro
-      - ./results:/app/results
-      - ./config:/app/config:ro
-    entrypoint: ["python", "main.py"]
-    profiles:
-      - cli
-    networks:
-      - hospital-network
-
-  # ---------------------------------------------------------------------------
   # Tests Service - Run pytest
   # ---------------------------------------------------------------------------
   tests:
