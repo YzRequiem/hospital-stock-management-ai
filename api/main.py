@@ -8,7 +8,7 @@ Run with:
     uvicorn api.main:app --reload --port 8000
 """
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import Any, Dict, Optional
@@ -31,14 +31,9 @@ from api.models import (
     MetricsResponse,
     QualityAssessment,
     TrackingResponse,
-    AnalysisRequest,
-    AnalysisResponse,
-    DatasetInfo,
     ProductsResponse,
     ProductInfo,
     HealthResponse,
-    ErrorResponse,
-    DatasetEnum,
     PriorityEnum
 )
 
@@ -47,12 +42,11 @@ from config import (
     load_yaml_config,
     get_dataset_path,
     PROJECT_ROOT,
-    DATASETS,
     REGRESSORS
 )
 
 from src import __version__
-from src.data_loader import load_dataset, prepare_prophet_data, train_test_split, get_dataset_info
+from src.data_loader import load_dataset, prepare_prophet_data, train_test_split
 from src.enriched_pipeline import run_enriched_notebook_analysis
 from src.metrics import calculate_metrics, interpret_mape
 from src.model import check_prophet_available, model_summary
@@ -150,7 +144,7 @@ async def api_info():
         "clinic": "Clinique du Mont Vert",
         "author": "Master EISI",
         "prophet_available": check_prophet_available(),
-        "datasets": list(DATASETS.keys()),
+        "dataset": "enriched",
         "regressors": REGRESSORS
     }
 
@@ -206,15 +200,11 @@ def _load_product_config_index() -> Dict[str, Dict[str, Any]]:
     return indexed_config
 
 
-def _build_products_from_dataset(dataset: DatasetEnum = DatasetEnum.enriched) -> list[ProductInfo]:
-    """Build product metadata from the selected CSV dataset."""
-    dataset_file = DATASETS.get(dataset.value)
-    if not dataset_file:
-        raise HTTPException(status_code=404, detail=f"Dataset '{dataset.value}' not configured")
-
-    dataset_path = get_dataset_path(dataset_file)
+def _build_products_from_enriched_dataset() -> list[ProductInfo]:
+    """Build product metadata from the enriched CSV dataset."""
+    dataset_path = get_dataset_path("dataset_stock_hopital_ENRICHI.csv")
     if not dataset_path.exists():
-        raise HTTPException(status_code=404, detail=f"Dataset file not found: {dataset_file}")
+        raise HTTPException(status_code=404, detail="Enriched dataset file not found")
 
     df = load_dataset(str(dataset_path))
 
@@ -274,9 +264,9 @@ def _build_products_from_dataset(dataset: DatasetEnum = DatasetEnum.enriched) ->
     summary="List all products",
     tags=["Products"]
 )
-async def list_products(dataset: DatasetEnum = Query(default=DatasetEnum.enriched)):
+async def list_products():
     """Get products actually present in the enriched CSV dataset."""
-    products = _build_products_from_dataset(dataset)
+    products = _build_products_from_enriched_dataset()
     return ProductsResponse(count=len(products), products=products)
 
 
@@ -289,85 +279,13 @@ async def list_products(dataset: DatasetEnum = Query(default=DatasetEnum.enriche
 async def get_product(product_id: str):
     """Get details for a specific dataset product."""
     normalized_product_id = _slugify_product_name(product_id)
-    products = _build_products_from_dataset(DatasetEnum.enriched)
+    products = _build_products_from_enriched_dataset()
 
     for product in products:
         if product.id == normalized_product_id:
             return product
 
     raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-
-
-# =============================================================================
-# Datasets Endpoints
-# =============================================================================
-
-@app.get(
-    "/datasets",
-    summary="List available datasets",
-    tags=["Datasets"]
-)
-async def list_datasets():
-    """Get the enriched dataset status."""
-    datasets_info = []
-    
-    for key, filename in DATASETS.items():
-        path = get_dataset_path(filename)
-        datasets_info.append({
-            "key": key,
-            "filename": filename,
-            "exists": path.exists(),
-            "path": str(path)
-        })
-    
-    return {"datasets": datasets_info}
-
-
-@app.get(
-    "/datasets/{dataset_key}/info",
-    response_model=DatasetInfo,
-    summary="Get dataset information",
-    tags=["Datasets"]
-)
-async def get_dataset_info_endpoint(dataset_key: DatasetEnum):
-    """Get detailed information about a dataset."""
-    if dataset_key.value not in DATASETS:
-        raise HTTPException(status_code=404, detail=f"Dataset '{dataset_key}' not found")
-    
-    dataset_path = get_dataset_path(DATASETS[dataset_key.value])
-    
-    if not dataset_path.exists():
-        raise HTTPException(status_code=404, detail=f"Dataset file not found: {dataset_path}")
-    
-    try:
-        df = load_dataset(str(dataset_path))
-        info = get_dataset_info(df)
-        
-        # Get unique products
-        product_col = next((c for c in ['nom_produit', 'produit', 'product'] if c in df.columns), None)
-        products = list(df[product_col].unique()) if product_col else None
-        
-        # Format date range
-        date_range = None
-        if 'date_range' in info:
-            date_range = {
-                "start": str(info['date_range']['start'].date()) if info['date_range']['start'] else None,
-                "end": str(info['date_range']['end'].date()) if info['date_range']['end'] else None,
-                "days": info['date_range']['days']
-            }
-        
-        return DatasetInfo(
-            name=dataset_key.value,
-            rows=info['rows'],
-            columns=info['columns'],
-            memory_mb=round(info['memory_mb'], 2),
-            date_range=date_range,
-            products=products
-        )
-    
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 # =============================================================================
 # Prediction Endpoints
@@ -381,7 +299,7 @@ async def get_dataset_info_endpoint(dataset_key: DatasetEnum):
     responses={
         200: {"description": "Successful prediction"},
         400: {"description": "Invalid request"},
-        404: {"description": "Product or dataset not found"},
+        404: {"description": "Product not found"},
         503: {"description": "Prophet not available"}
     }
 )
@@ -391,7 +309,6 @@ async def predict(request: PredictionRequest):
     
     - **product**: Name of the product to predict
     - **days**: Number of days to predict (1-365)
-    - **dataset**: Dataset enrichi utilise pour l'entrainement
     - **include_regressors**: Include external factors from the enriched dataset
     """
     # Check Prophet availability
@@ -405,13 +322,9 @@ async def predict(request: PredictionRequest):
     from src.model import train_prophet_model, predict as model_predict, predict_future
     
     # Get dataset path
-    dataset_file = DATASETS.get(request.dataset.value)
-    if not dataset_file:
-        raise HTTPException(status_code=404, detail=f"Dataset '{request.dataset}' not configured")
-    
-    dataset_path = get_dataset_path(dataset_file)
+    dataset_path = get_dataset_path("dataset_stock_hopital_ENRICHI.csv")
     if not dataset_path.exists():
-        raise HTTPException(status_code=404, detail=f"Dataset file not found")
+        raise HTTPException(status_code=404, detail="Enriched dataset file not found")
     
     try:
         tracking_uri = normalize_tracking_uri(request.mlflow_tracking_uri, PROJECT_ROOT)
@@ -428,7 +341,7 @@ async def predict(request: PredictionRequest):
         start_date_str = str(request.start_date) if request.start_date else None
         recommendation = None
 
-        if request.dataset == DatasetEnum.enriched and request.include_regressors:
+        if request.include_regressors:
             analysis = run_enriched_notebook_analysis(
                 df=df,
                 product_name=request.product,
@@ -448,7 +361,7 @@ async def predict(request: PredictionRequest):
             if request.enable_mlflow and check_mlflow_available():
                 tracked = log_prediction_run(
                     product_name=request.product,
-                    dataset_name=request.dataset.value,
+                    dataset_name='enriched',
                     horizon_days=request.days,
                     dataset_path=dataset_path,
                     train_df=train,
@@ -492,7 +405,7 @@ async def predict(request: PredictionRequest):
 
             return PredictionResponse(
                 product=request.product,
-                dataset=request.dataset.value,
+                dataset='enriched',
                 train_days=len(train),
                 prediction_days=request.days,
                 metrics=MetricsResponse(
@@ -575,7 +488,7 @@ async def predict(request: PredictionRequest):
         if request.enable_mlflow and check_mlflow_available():
             tracked = log_prediction_run(
                 product_name=request.product,
-                dataset_name=request.dataset.value,
+                dataset_name='enriched',
                 horizon_days=request.days,
                 dataset_path=dataset_path,
                 train_df=train,
@@ -622,7 +535,7 @@ async def predict(request: PredictionRequest):
         
         return PredictionResponse(
             product=request.product,
-            dataset=request.dataset.value,
+            dataset='enriched',
             train_days=len(train),
             prediction_days=request.days,
             metrics=MetricsResponse(
@@ -656,7 +569,6 @@ async def predict(request: PredictionRequest):
 async def quick_predict(
     product: str,
     days: int = Query(default=30, ge=1, le=365),
-    dataset: DatasetEnum = Query(default=DatasetEnum.enriched),
     enable_mlflow: bool = Query(default=False),
     mlflow_experiment: Optional[str] = Query(default="hospital-stock-api")
 ):
@@ -664,7 +576,6 @@ async def quick_predict(
     request = PredictionRequest(
         product=product,
         days=days,
-        dataset=dataset,
         enable_mlflow=enable_mlflow,
         mlflow_experiment=mlflow_experiment,
     )

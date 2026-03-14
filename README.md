@@ -132,7 +132,6 @@ uvicorn api.main:app --reload --port 8000
 | ------- | -------------------- | ---------------------- |
 | GET     | `/health`            | Health check           |
 | GET     | `/products`          | Liste des produits     |
-| GET     | `/datasets`          | Liste des datasets     |
 | POST    | `/predict`           | Prédiction (JSON body) |
 | GET     | `/predict/{product}` | Prédiction rapide      |
 
@@ -149,7 +148,7 @@ curl -X POST "http://localhost:8000/predict" \
 ```bash
 curl -X POST "http://localhost:8000/predict" \
   -H "Content-Type: application/json" \
-  -d '{"product": "Poulet Frais", "days": 30, "dataset": "enriched", "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
+  -d '{"product": "Poulet Frais", "days": 30, "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
 ```
 
 La réponse contient alors un bloc `tracking` avec le statut du logging, le `run_id`, le `run_name` et le `tracking_uri`.

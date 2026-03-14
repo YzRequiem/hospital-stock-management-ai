@@ -5,15 +5,10 @@ Pydantic Models for API
 Data validation models for the REST API.
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from enum import Enum
-
-
-class DatasetEnum(str, Enum):
-    """Available datasets."""
-    enriched = "enriched"
 
 
 class PriorityEnum(str, Enum):
@@ -39,10 +34,6 @@ class PredictionRequest(BaseModel):
         ge=1,
         le=365,
         description="Number of days to predict"
-    )
-    dataset: DatasetEnum = Field(
-        default=DatasetEnum.enriched,
-        description="Dataset enrichi utilise pour l'entrainement"
     )
     include_regressors: bool = Field(
         default=False,
@@ -70,7 +61,6 @@ class PredictionRequest(BaseModel):
             "example": {
                 "product": "Poulet frais",
                 "days": 30,
-                "dataset": "enriched",
                 "include_regressors": False,
                 "start_date": "2025-12-11",
                 "enable_mlflow": True,
@@ -78,32 +68,6 @@ class PredictionRequest(BaseModel):
                 "mlflow_tracking_uri": "sqlite:///mlflow.db"
             }
         }
-
-
-class AnalysisRequest(BaseModel):
-    """Request model for dataset analysis."""
-    dataset: DatasetEnum = Field(
-        default=DatasetEnum.enriched,
-        description="Dataset enrichi a analyser"
-    )
-    product: Optional[str] = Field(
-        default=None,
-        description="Optional product filter"
-    )
-
-
-class TrainRequest(BaseModel):
-    """Request model for model training."""
-    product: str = Field(..., description="Product to train model for")
-    dataset: DatasetEnum = Field(default=DatasetEnum.enriched)
-    
-    # Prophet parameters
-    daily_seasonality: bool = Field(default=False)
-    weekly_seasonality: bool = Field(default=True)
-    yearly_seasonality: bool = Field(default=True)
-    seasonality_mode: str = Field(default="additive")
-    changepoint_prior_scale: float = Field(default=0.05, ge=0.001, le=0.5)
-
 
 # =============================================================================
 # Response Models
@@ -218,24 +182,6 @@ class PredictionResponse(BaseModel):
                 "generated_at": "2025-12-10T14:30:00"
             }
         }
-
-
-class DatasetInfo(BaseModel):
-    """Dataset information."""
-    name: str
-    rows: int
-    columns: int
-    memory_mb: float
-    date_range: Optional[Dict[str, Any]] = None
-    products: Optional[List[str]] = None
-
-
-class AnalysisResponse(BaseModel):
-    """Response model for dataset analysis."""
-    dataset: DatasetInfo
-    column_stats: Dict[str, Dict[str, Any]]
-    numeric_summary: Dict[str, Dict[str, float]]
-
 
 class ProductInfo(BaseModel):
     """Product information from configuration."""

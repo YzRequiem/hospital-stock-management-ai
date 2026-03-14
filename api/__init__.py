@@ -11,8 +11,7 @@ from .models import (
     PredictionResponse,
     MetricsResponse,
     HealthResponse,
-    ProductInfo,
-    DatasetEnum
+    ProductInfo
 )
 
 __all__ = [
@@ -21,6 +20,5 @@ __all__ = [
     "PredictionResponse",
     "MetricsResponse",
     "HealthResponse",
-    "ProductInfo",
-    "DatasetEnum"
+    "ProductInfo"
 ]
