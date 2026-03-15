@@ -36,7 +36,7 @@ class TestEnrichedPipeline:
 
         assert len(result['predictions_futures']) == 14
         assert 'quantite_a_commander' in result['recommendation']
-        assert result['recommendation']['horizon_commande_jours'] == 7
+        assert result['recommendation']['horizon_commande_jours'] == 14
 
     def test_builds_daily_arrivals_for_one_day_dlc(self):
         produit_df = pd.DataFrame(

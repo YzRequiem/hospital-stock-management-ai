@@ -162,7 +162,7 @@ class PredictionResponse(BaseModel):
                     {"date": "2025-01-01", "predicted": 45.5, "lower_bound": 38.2, "upper_bound": 52.8}
                 ],
                 "recommendation": {
-                    "horizon_commande_jours": 7,
+                    "horizon_commande_jours": 28,
                     "stock_disponible_actuel": 42.5,
                     "arrivages_planifies": 0.0,
                     "consommation_prevue_horizon": 85.3,

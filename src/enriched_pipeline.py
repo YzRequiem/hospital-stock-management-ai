@@ -50,7 +50,6 @@ MANUAL_CHANGEPOINTS = [
     "2023-09-01",
 ]
 
-DEFAULT_ORDER_HORIZON_DAYS = 7
 DEFAULT_SAFETY_COVERAGE_DAYS = 2
 DEFAULT_MIN_DLC_DAYS = 1
 
@@ -469,10 +468,13 @@ def _build_future_frame(
 def build_order_recommendation(
     produit_df: pd.DataFrame,
     predictions_futures: pd.DataFrame,
-    horizon_days: int = DEFAULT_ORDER_HORIZON_DAYS,
+    horizon_days: Optional[int] = None,
     safety_coverage_days: int = DEFAULT_SAFETY_COVERAGE_DAYS,
 ) -> Dict[str, Any]:
     """Reproduce the notebook order recommendation step."""
+    if horizon_days is None:
+        horizon_days = len(predictions_futures)
+
     date_debut_prevision = predictions_futures["ds"].min().normalize()
 
     stock_snapshot = produit_df[produit_df["date"] == produit_df["date"].max()].copy()
@@ -522,7 +524,7 @@ def run_enriched_notebook_analysis(
     product_name: str,
     periods: int,
     start_date: Optional[str] = None,
-    order_horizon_days: int = DEFAULT_ORDER_HORIZON_DAYS,
+    order_horizon_days: Optional[int] = None,
     safety_coverage_days: int = DEFAULT_SAFETY_COVERAGE_DAYS,
 ) -> Dict[str, Any]:
     """Run the notebook-equivalent enriched analysis for one product."""

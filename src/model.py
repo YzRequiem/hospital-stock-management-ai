@@ -255,5 +255,9 @@ def model_summary(model: "Prophet") -> Dict[str, Any]:
     
     if hasattr(model, 'changepoints'):
         summary["n_changepoints"] = len(model.changepoints)
-    
+
+    if hasattr(model, 'mcmc_samples'):
+        summary["mcmc_samples"] = model.mcmc_samples
+        summary["inference_method"] = "MCMC (NUTS)" if model.mcmc_samples > 0 else "MAP"
+
     return summary

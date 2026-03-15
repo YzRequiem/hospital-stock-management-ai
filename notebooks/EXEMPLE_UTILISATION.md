@@ -26,7 +26,6 @@ Le notebook repose sur quelques variables faciles à modifier :
 - `FICHIER_CSV` : chemin du dataset enrichi, par défaut `../data/dataset_stock_hopital_ENRICHI.csv`
 - `PRODUIT_ANALYSE` : produit étudié, par exemple `Poisson blanc` ou `Poulet frais`
 - `MLFLOW_EXPERIMENT` : nom de l'expérience MLflow, par défaut `prophet-notebook-enrichi`
-- `HORIZON_COMMANDE_JOURS` : horizon utilisé pour la recommandation de commande, par défaut `7`
 - `COUVERTURE_SECURITE_JOURS` : couverture de sécurité en jours, par défaut `2`
 
 ## Déroulé du notebook
