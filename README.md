@@ -1,163 +1,310 @@
-# Gestion Intelligente des Stocks Hospitaliers - IA Prédictive
+# Hospital Stock Management AI
 
-Projet de Master EISI - Analyse prédictive pour l'optimisation de la gestion des stocks de la Clinique du Mont Vert.
+**Clinique du Mont Vert** - Système de prédiction de stock hospitalier avec IA
+
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com/)
+[![Prophet](https://img.shields.io/badge/Prophet-1.1+-orange.svg)](https://facebook.github.io/prophet/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ## Description
 
-Ce projet utilise des techniques d'intelligence artificielle et d'apprentissage automatique pour prédire la consommation de produits hospitaliers et optimiser la gestion des stocks. L'objectif est de réduire le gaspillage alimentaire et prévenir les ruptures de stock.
+Projet de Master EISI utilisant l'intelligence artificielle pour prédire la consommation de produits hospitaliers et optimiser la gestion des stocks. L'objectif est de réduire le gaspillage alimentaire et prévenir les ruptures de stock.
+
+Le projet couvre désormais deux usages complémentaires:
+
+- une API FastAPI pour exposer les prédictions et le tracking MLflow
+- un notebook enrichi Prophet qui produit aussi une recommandation opérationnelle de commande
 
 ### Résultats attendus
-- Réduction de 30% du gaspillage alimentaire
-- Réduction de 50% des ruptures de stock
-- Économies annuelles estimées à 60 000€
+
+- Réduction de **30%** du gaspillage alimentaire
+- Réduction de **50%** des ruptures de stock
+- Économies annuelles estimées à **60 000€**
 
 ## Structure du Projet
 
 ```
-final-project/
-├── data/
-│   ├── dataset_stock_hopital.csv          # Dataset de base (3 ans)
-│   ├── dataset_stock_hopital_REALISTE.csv # Dataset avec FIFO
-│   ├── dataset_stock_hopital_ENRICHI.csv  # ⭐ Dataset enrichi (5 ans + regressors)
-│   ├── README_DATASETS.md                 # Comparaison des datasets
-│   └── GUIDE_DATASET_ENRICHI.md          # Guide d'utilisation complet
-├── notebooks/
-│   ├── Analyse_Mont_Vert_LOCAL_VSCODE.ipynb  # Notebook principal
-│   ├── results_manager.py                    # Gestionnaire de résultats
-│   └── EXEMPLE_UTILISATION.md               # Guide du results manager
-├── results/                               # Résultats automatiques
-│   └── [YYYYMMDD_HHMMSS]/               # Un dossier par exécution
-│       ├── predictions_*.csv
-│       ├── summary_*.json
-│       ├── README.txt                   # Résumé auto
-│       └── graphs/
-│           └── *.png
-├── .gitignore
-├── README.md
-└── requirements.txt
+hospital-stock-management-ai/
+├── 📁 api/                    # API REST FastAPI
+│   ├── __init__.py
+│   ├── main.py               # Application FastAPI
+│   └── models.py             # Modèles Pydantic
+├── 📁 config/                 # Configuration centralisée
+│   ├── __init__.py
+│   ├── settings.py           # Settings Python
+│   ├── products.yaml         # Définition des produits
+│   └── model_params.yaml     # Paramètres Prophet
+├── 📁 data/                   # Datasets
+│   ├── dataset_stock_hopital_ENRICHI.csv
+│   ├── README_DATASETS.md    # Description du dataset enrichi
+│   └── GUIDE_DATASET_ENRICHI.md
+├── 📁 notebooks/              # Analyses Jupyter
+│   ├── Analyse_Mont_Vert_ENRICHI.ipynb       # Analyse mono-produit
+│   ├── Analyse_Tous_Produits_ENRICHI.ipynb   # Analyse multi-produits
+│   ├── Analyse_Dataset_ENRICHI.ipynb          # Exploration du dataset
+│   ├── Analyse_Metier_Produits_Gaspillage.ipynb  # Analyse métier
+│   ├── EXEMPLE_UTILISATION.md
+│   └── results_manager.py
+├── 📁 results/                # Résultats générés
+│   └── analyse-{product}-{timestamp}/
+├── 📁 src/                    # Code source modulaire
+│   ├── __init__.py
+│   ├── data_loader.py        # Chargement données
+│   ├── enriched_pipeline.py  # Pipeline recommandation de commande
+│   ├── model.py              # Modèle Prophet
+│   ├── metrics.py            # Calcul métriques
+│   ├── mlflow_utils.py       # Tracking MLflow partagé
+│   └── visualization.py      # Graphiques
+├── 📁 tests/                  # Tests unitaires
+│   ├── conftest.py           # Fixtures pytest
+│   ├── test_config.py
+│   ├── test_data_loader.py
+│   ├── test_enriched_pipeline.py
+│   ├── test_metrics.py
+│   └── test_mlflow_utils.py
+├── Dockerfile                 # Image Docker
+├── docker-compose.yml         # Orchestration
+├── requirements.txt           # Dépendances
+├── pytest.ini                 # Config pytest
+└── LICENSE                    # MIT License
 ```
 
 ## Données
 
-### 3 Datasets disponibles
+### Dataset disponible
 
-Le projet inclut **3 versions** du dataset, chacune optimisée pour différents cas d'usage :
+| Dataset     | Période   | Lignes | Colonnes | Usage                     |
+| ----------- | --------- | ------ | -------- | ------------------------- |
+| **Enrichi** | 2020-2024 | 85,809 | 22       | **Prophet + régresseurs** |
 
-| Dataset | Période | Lignes | Colonnes | Usage |
-|---------|---------|--------|----------|-------|
-| **Base** | 2022-2024 | 51,839 | 15 | Analyses de base |
-| **Réaliste** | 2022-2024 | 24,000 | 15 | FIFO + gestion réaliste |
-| **Enrichi** ⭐ | 2020-2024 | 85,809 | 22 | **Prophet + regressors avancés** |
+Le projet utilise désormais uniquement le dataset enrichi avec variables contextuelles et historique 2020-2024 pour les analyses Prophet avancées.
 
-**Recommandé** : Utilisez le dataset enrichi pour obtenir les meilleures performances de prédiction !
+Documentation : [data/README_DATASETS.md](data/README_DATASETS.md)
 
-📚 **Documentation détaillée** : Consultez [data/README_DATASETS.md](data/README_DATASETS.md)
+## Modèle de Prédiction
 
-### Dataset Enrichi (recommandé)
+Ce projet utilise **Prophet** (Meta/Facebook) pour la prédiction de séries temporelles. Prophet est particulièrement adapté car il gère automatiquement :
 
-Le dataset enrichi v3.0 contient **85 809 transactions sur 5 ans** (2020-2024) avec :
-- **40 produits** distincts
-- **12 fournisseurs**
-- **7 régresseurs externes** : température, occupation, patients, épidémies, etc.
-- **Holidays intégrés** : jours fériés français, vacances scolaires, COVID
-- **Changepoints** : événements majeurs (COVID, extensions)
-- **Saisonnalité renforcée** : patterns hebdomadaires et annuels marqués
+- **Saisonnalité multiple** : patterns hebdomadaires et annuels
+- **Régresseurs externes** : température, occupation, épidémies...
+- **Données manquantes** : jours sans consommation
+- **Changements de tendance** : impact COVID, nouvelles pratiques
 
-🚀 **Guide complet** : [data/GUIDE_DATASET_ENRICHI.md](data/GUIDE_DATASET_ENRICHI.md)
+Documentation complète : [docs/PROPHET_MODEL.md](docs/PROPHET_MODEL.md)
 
-## Installation
+## 🚀 Installation
 
 ### Prérequis
-- Python 3.8 ou supérieur
-- pip
 
-### Configuration
+- Python 3.11+
+- pip ou conda
 
-1. Cloner le repository :
+### Installation rapide
+
 ```bash
-git clone <votre-repo-url>
-cd final-project
-```
+# Cloner le repository
+git clone https://github.com/YzRequiem/hospital-stock-management-ai.git
+cd hospital-stock-management-ai
 
-2. Créer un environnement virtuel :
-```bash
+# Créer l'environnement virtuel
 python -m venv venv
-```
 
-3. Activer l'environnement virtuel :
-- Windows :
-```bash
+# Activer (Windows)
 venv\Scripts\activate
-```
-- Linux/Mac :
-```bash
-source venv/bin/activate
-```
 
-4. Installer les dépendances :
-```bash
+# Activer (Linux/Mac)
+source venv/bin/activate
+
+# Installer les dépendances
 pip install -r requirements.txt
 ```
 
 ## Utilisation
 
-1. Ouvrir le notebook dans VS Code ou Jupyter :
+### API REST
+
 ```bash
-code notebooks/Analyse_Mont_Vert_LOCAL_VSCODE.ipynb
+# Lancer l'API
+uvicorn api.main:app --reload --port 8000
+
+# Documentation Swagger
+# http://localhost:8000/docs
 ```
 
-2. Exécuter les cellules du notebook dans l'ordre
+**Endpoints principaux :**
 
-3. Les résultats seront automatiquement sauvegardés dans `results/[YYYYMMDD_HHMMSS]/`
+| Méthode | Endpoint             | Description            |
+| ------- | -------------------- | ---------------------- |
+| GET     | `/health`            | Health check           |
+| GET     | `/products`          | Liste des produits     |
+| POST    | `/predict`           | Prédiction (JSON body) |
+| GET     | `/predict/{product}` | Prédiction rapide      |
 
-### Personnalisation
+**Exemple d'appel :**
 
-Pour analyser un autre produit, modifier la variable `PRODUIT_ANALYSE` dans la section 6 du notebook.
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"product": "Poulet Frais", "days": 30}'
+```
 
-## Fonctionnalités
+**Exemple avec tracking MLflow :**
 
-### Analyse des Données
-- Exploration et nettoyage des données
-- Détection des patterns saisonniers
-- Identification des produits critiques
-- Analyse des produits périssables
+```bash
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{"product": "Poulet Frais", "days": 30, "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
+```
 
-### Modélisation Prédictive
-- Utilisation de Facebook Prophet pour les prévisions
-- Prédictions avec intervalles de confiance
-- Prise en compte de la saisonnalité et des tendances
+La réponse contient alors un bloc `tracking` avec le statut du logging, le `run_id`, le `run_name` et le `tracking_uri`.
 
-### Visualisations
-- Top 10 des produits les plus consommés
-- Analyse des produits périssables
-- Patterns hebdomadaires et mensuels
-- Graphiques de prédictions
+### Docker
 
-### Recommandations Business
-- Alertes de gaspillage potentiel
-- Suggestions de commandes optimisées
-- Analyse des risques de rupture
+```bash
+# Build et lancer
+docker-compose up -d api
 
-## Technologies Utilisées
+# API disponible sur http://localhost:8000
 
-- **Python** : Langage principal
-- **pandas** : Manipulation de données
-- **numpy** : Calculs numériques
-- **matplotlib/seaborn** : Visualisations
-- **Prophet** : Prévisions de séries temporelles
-- **Jupyter** : Environnement d'analyse interactive
+# Lancer les tests
+docker-compose --profile test run tests
 
-## Résultats
+# Mode développement (hot-reload)
+docker-compose --profile dev up api-dev
+```
 
-Chaque exécution du notebook génère :
-- **Prédictions CSV** : Prévisions quotidiennes sur 4 semaines
-- **Résumé JSON** : Statistiques et recommandations
-- **Graphiques PNG** : 6 visualisations professionnelles
+### Notebooks Jupyter
 
-## Auteur
+```bash
+# Ouvrir dans VS Code
+code notebooks/Analyse_Mont_Vert_ENRICHI.ipynb
 
-Projet de Master EISI - Clinique du Mont Vert
+# Ou lancer Jupyter
+jupyter notebook
+```
+
+Le notebook enrichi principal couvre:
+
+- entraînement Prophet avec régresseurs externes
+- évaluation sur jeu de test
+- prédictions futures sur 28 jours
+- recommandation de commande sur l'horizon complet (28 jours) avec stock disponible, stock de sécurité et hypothèse d'absence d'arrivage futur planifié
+- plan d'arrivages prédit sur 28 jours (basé sur la DLC produit)
+- export des résultats dans `results/`
+- tracking MLflow dans l'expérience `prophet-notebook-enrichi`
+
+### MLflow
+
+Le projet peut tracer les expériences Prophet via le notebook et l'API FastAPI.
+
+```bash
+# Lancer l'interface locale avec le backend SQLite du projet
+# (--workers 1 requis sur Windows avec Python 3.13+)
+mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000 --workers 1
+
+# Via l'API FastAPI
+curl -X POST "http://localhost:8000/predict" -H "Content-Type: application/json" -d '{"product": "Poulet Frais", "days": 30, "dataset": "enriched", "enable_mlflow": true, "mlflow_experiment": "hospital-stock-api"}'
+```
+
+Interface disponible sur `http://127.0.0.1:5000`.
+
+Par défaut, le backend de tracking est maintenant `sqlite:///C:/Users/mxmle/project/final-project/mlflow.db`, ce qui évite le file store local déprécié. Chaque run enregistre:
+
+- les paramètres métier et Prophet
+- les métriques `mae`, `mape`, `rmse`, `r2`
+- les prédictions de test et futures
+- les artefacts générés dans `results/`
+
+L'API et le notebook n'utilisent pas forcément la même expérience:
+
+- API: `hospital-stock-api` par défaut
+- notebook enrichi: `prophet-notebook-enrichi`
+
+## Tests
+
+```bash
+# Exécuter tous les tests
+pytest
+
+# Tests avec couverture
+pytest --cov=src --cov-report=html
+
+# Tests verbeux
+pytest -v
+```
+
+## Métriques de Performance
+
+Le modèle Prophet est évalué avec :
+
+| Métrique | Description               | Seuil acceptable |
+| -------- | ------------------------- | ---------------- |
+| **MAE**  | Erreur absolue moyenne    | < 10 kg          |
+| **MAPE** | Erreur relative moyenne   | < 25%            |
+| **RMSE** | Erreur quadratique        | < 15 kg          |
+| **R²**   | Coefficient détermination | > 0.7            |
+
+**Interprétation MAPE :**
+
+- ✅ Excellent : < 10%
+- ✅ Très bon : < 15%
+- ✅ Bon : < 25%
+- ⚠️ Acceptable : < 50%
+- ❌ Insuffisant : > 50%
+
+## Technologies
+
+| Catégorie               | Technologies                       |
+| ----------------------- | ---------------------------------- |
+| **Langage**             | Python 3.11+                       |
+| **Data Science**        | pandas, numpy, matplotlib, seaborn |
+| **ML/Prédiction**       | Prophet (Facebook)                 |
+| **Experiment Tracking** | MLflow                             |
+| **API**                 | FastAPI, Pydantic, uvicorn         |
+| **Tests**               | pytest, pytest-cov                 |
+| **Config**              | YAML, dataclasses                  |
+| **Container**           | Docker, docker-compose             |
+
+## Modules
+
+### `src/data_loader.py`
+
+- `load_dataset()` - Chargement CSV avec encodage auto
+- `prepare_prophet_data()` - Préparation format Prophet
+- `train_test_split()` - Split chronologique
+
+### `src/model.py`
+
+- `train_prophet_model()` - Entraînement avec saisonnalité
+- `predict()` - Prédictions sur données existantes
+- `predict_future()` - Prédictions futures
+
+### `src/enriched_pipeline.py`
+
+- `build_order_recommendation()` - Calcul de la recommandation de commande (horizon = longueur des prédictions)
+- `build_dlc_arrival_schedule()` - Plan d'arrivages prédit sur la base de la DLC
+- `infer_product_dlc_days()` - Inférence de la DLC à partir des données historiques
+- `run_enriched_notebook_analysis()` - Pipeline complet (chargement → prédiction → recommandation)
+
+### `src/mlflow_utils.py`
+
+- `get_default_tracking_uri()` - Backend SQLite par défaut du projet
+- `check_mlflow_available()` - Vérification disponibilité MLflow
+- `log_prediction_run()` - Logging partagé API et notebook
+
+### `src/metrics.py`
+
+- `calculate_mape()` - MAPE avec gestion des zéros
+- `calculate_metrics()` - MAE, MAPE, RMSE, R²
+- `interpret_mape()` - Interprétation qualitative
+
+### `src/visualization.py`
+
+- `plot_predictions()` - Graphique prédictions vs réel
+- `plot_seasonality()` - Composantes saisonnières
+- `plot_weekly_pattern()` - Pattern hebdomadaire
 
 ## Licence
 
-Projet académique
+Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de détails.

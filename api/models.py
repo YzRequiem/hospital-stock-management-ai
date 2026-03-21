@@ -1,0 +1,239 @@
+"""
+Pydantic Models for API
+=======================
+
+Data validation models for the REST API.
+"""
+
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime
+from enum import Enum
+
+
+class PriorityEnum(str, Enum):
+    """Product priority levels."""
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
+# =============================================================================
+# Request Models
+# =============================================================================
+
+class PredictionRequest(BaseModel):
+    """Request model for predictions."""
+    product: str = Field(
+        ..., 
+        description="Product name to predict",
+        example="Poulet frais"
+    )
+    days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description="Number of days to predict"
+    )
+    include_regressors: bool = Field(
+        default=False,
+        description="Inclure les regresseurs externes du dataset enrichi"
+    )
+    start_date: Optional[date] = Field(
+        default=None,
+        description="Start date for predictions (default: today)"
+    )
+    enable_mlflow: bool = Field(
+        default=False,
+        description="Enable MLflow tracking for this prediction request"
+    )
+    mlflow_experiment: Optional[str] = Field(
+        default="hospital-stock-api",
+        description="MLflow experiment name when tracking is enabled"
+    )
+    mlflow_tracking_uri: Optional[str] = Field(
+        default=None,
+        description="Optional MLflow tracking URI (default: sqlite:///mlflow.db)"
+    )
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "product": "Poulet frais",
+                "days": 30,
+                "include_regressors": False,
+                "start_date": "2025-12-11",
+                "enable_mlflow": True,
+                "mlflow_experiment": "hospital-stock-api",
+                "mlflow_tracking_uri": "sqlite:///mlflow.db"
+            }
+        }
+
+# =============================================================================
+# Response Models
+# =============================================================================
+
+class PredictionPoint(BaseModel):
+    """Single prediction point."""
+    date: date
+    predicted: float = Field(..., description="Predicted value in kg")
+    lower_bound: float = Field(..., description="Lower confidence bound")
+    upper_bound: float = Field(..., description="Upper confidence bound")
+
+
+class MetricsResponse(BaseModel):
+    """Model performance metrics."""
+    mae: float = Field(..., description="Mean Absolute Error")
+    mape: float = Field(..., description="Mean Absolute Percentage Error")
+    rmse: float = Field(..., description="Root Mean Square Error")
+    r2: float = Field(..., description="R² coefficient")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "mae": 5.23,
+                "mape": 12.45,
+                "rmse": 7.89,
+                "r2": 0.85
+            }
+        }
+
+
+class QualityAssessment(BaseModel):
+    """Quality assessment of predictions."""
+    level: str = Field(..., description="Quality level: excellent, very_good, good, acceptable, poor")
+    description: str = Field(..., description="Human-readable description")
+
+
+class TrackingResponse(BaseModel):
+    """MLflow tracking information for a prediction run."""
+    enabled: bool = False
+    logged: bool = False
+    experiment_name: Optional[str] = None
+    tracking_uri: Optional[str] = None
+    run_id: Optional[str] = None
+    run_name: Optional[str] = None
+
+
+class RecommendationResponse(BaseModel):
+    """Operational order recommendation derived from the forecast."""
+    horizon_commande_jours: int
+    stock_disponible_actuel: float
+    arrivages_planifies: float
+    consommation_prevue_horizon: float
+    stock_securite: float
+    quantite_a_commander: float
+    couverture_estimee_jours: Optional[float] = None
+    hypothese: str
+    date_debut_prevision: Optional[date] = None
+
+
+class PredictionResponse(BaseModel):
+    """Response model for predictions."""
+    product: str
+    dataset: str
+    train_days: int = Field(..., description="Number of training days")
+    prediction_days: int = Field(..., description="Number of predicted days")
+    metrics: MetricsResponse
+    quality: QualityAssessment
+    predictions: List[PredictionPoint]
+    recommendation: Optional[RecommendationResponse] = None
+    tracking: Optional[TrackingResponse] = None
+    generated_at: datetime = Field(default_factory=datetime.now)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "product": "Poulet frais",
+                "dataset": "enriched",
+                "train_days": 1460,
+                "prediction_days": 30,
+                "metrics": {
+                    "mae": 5.23,
+                    "mape": 12.45,
+                    "rmse": 7.89,
+                    "r2": 0.85
+                },
+                "quality": {
+                    "level": "very_good",
+                    "description": "✅ Très bonne précision (MAPE < 15%)"
+                },
+                "predictions": [
+                    {"date": "2025-01-01", "predicted": 45.5, "lower_bound": 38.2, "upper_bound": 52.8}
+                ],
+                "recommendation": {
+                    "horizon_commande_jours": 28,
+                    "stock_disponible_actuel": 42.5,
+                    "arrivages_planifies": 0.0,
+                    "consommation_prevue_horizon": 85.3,
+                    "stock_securite": 24.4,
+                    "quantite_a_commander": 67.2,
+                    "couverture_estimee_jours": 3.5,
+                    "hypothese": "Aucun arrivage futur planifié disponible dans le dataset historique"
+                },
+                "tracking": {
+                    "enabled": True,
+                    "logged": True,
+                    "experiment_name": "hospital-stock-api",
+                    "tracking_uri": "sqlite:///project/mlflow.db",
+                    "run_id": "1234567890abcdef",
+                    "run_name": "predict-poulet-frais-enriched"
+                },
+                "generated_at": "2025-12-10T14:30:00"
+            }
+        }
+
+class ProductInfo(BaseModel):
+    """Product information from configuration."""
+    id: str
+    name: str
+    category: str
+    dlc_days: int
+    priority: PriorityEnum
+    unit: str = "kg"
+    min_stock: Optional[float] = None
+    max_stock: Optional[float] = None
+    reorder_point: Optional[float] = None
+
+
+class ProductsResponse(BaseModel):
+    """Response model for products list."""
+    count: int
+    products: List[ProductInfo]
+
+
+class HealthResponse(BaseModel):
+    """Health check response."""
+    status: str = "healthy"
+    version: str
+    prophet_available: bool
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+class ErrorResponse(BaseModel):
+    """Error response model."""
+    error: str
+    detail: Optional[str] = None
+    timestamp: datetime = Field(default_factory=datetime.now)
+
+
+# =============================================================================
+# Stock Alert Models
+# =============================================================================
+
+class StockAlert(BaseModel):
+    """Stock alert information."""
+    product: str
+    current_stock: float
+    predicted_consumption: float
+    days_until_reorder: int
+    alert_level: str = Field(..., description="critical, warning, normal")
+    recommendation: str
+
+
+class StockAlertsResponse(BaseModel):
+    """Response model for stock alerts."""
+    date: date
+    alerts: List[StockAlert]
+    critical_count: int
+    warning_count: int

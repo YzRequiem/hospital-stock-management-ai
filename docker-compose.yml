@@ -1,0 +1,107 @@
+# =============================================================================
+# Docker Compose - Hospital Stock Prediction
+# =============================================================================
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose up api         # Start API only
+#   docker-compose logs -f api    # View logs
+#   docker-compose down           # Stop all services
+#
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # API Service - FastAPI Application
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hospital-stock-api:latest
+    container_name: hospital-stock-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+    volumes:
+      # Mount data directory for persistent datasets
+      - ./data:/app/data:ro
+      # Mount results directory for output
+      - ./results:/app/results
+      # Mount config for hot-reload (development)
+      - ./config:/app/config:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - hospital-network
+
+  # ---------------------------------------------------------------------------
+  # Development API - With hot reload
+  # ---------------------------------------------------------------------------
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hospital-stock-api:dev
+    container_name: hospital-stock-api-dev
+    ports:
+      - "8001:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+    volumes:
+      # Mount entire project for development
+      - .:/app
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    profiles:
+      - dev
+    networks:
+      - hospital-network
+
+  # ---------------------------------------------------------------------------
+  # Tests Service - Run pytest
+  # ---------------------------------------------------------------------------
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hospital-stock-api:latest
+    container_name: hospital-stock-tests
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+      - ./config:/app/config:ro
+    entrypoint: ["pytest", "-v"]
+    profiles:
+      - test
+    networks:
+      - hospital-network
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  hospital-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes (optional - for data persistence)
+# =============================================================================
+volumes:
+  results-data:
+    driver: local
