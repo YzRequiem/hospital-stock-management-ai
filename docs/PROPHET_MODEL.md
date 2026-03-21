@@ -48,7 +48,7 @@ Où :
 
 ## Pourquoi Prophet pour ce projet ?
 
-### ✅ Avantages pour la prédiction de stock hospitalier
+### Avantages pour la prédiction de stock hospitalier
 
 | Avantage                                       | Application dans notre projet                                       |
 | ---------------------------------------------- | ------------------------------------------------------------------- |
@@ -60,7 +60,7 @@ Où :
 | **Rapide à entraîner**                         | Quelques secondes même sur 5 ans de données                         |
 | **Pas d'expertise ML requise**                 | Paramètres intuitifs et bien documentés                             |
 
-### ❌ Pourquoi pas d'autres modèles ?
+### Pourquoi pas d'autres modèles ?
 
 | Modèle             | Raison du non-choix                                         |
 | ------------------ | ----------------------------------------------------------- |
@@ -69,15 +69,15 @@ Où :
 | **XGBoost**        | Moins adapté aux séries temporelles avec saisonnalité forte |
 | **Moyenne mobile** | Trop simpliste, pas de saisonnalité                         |
 
-### 🎯 Cas d'usage idéal
+### Cas d'usage idéal
 
 Prophet est conçu pour les séries temporelles qui ont :
 
-- ✅ **Une forte saisonnalité** → Pattern hebdomadaire hôpital
-- ✅ **Plusieurs saisons d'historique** → 5 ans de données (2020-2024)
-- ✅ **Des données manquantes** → Jours sans consommation
-- ✅ **Des changements de tendance** → Impact COVID, nouvelles pratiques
-- ✅ **Des événements spéciaux** → Jours fériés, épidémies
+- **Une forte saisonnalité** → Pattern hebdomadaire hôpital
+- **Plusieurs saisons d'historique** → 5 ans de données (2020-2024)
+- **Des données manquantes** → Jours sans consommation
+- **Des changements de tendance** → Impact COVID, nouvelles pratiques
+- **Des événements spéciaux** → Jours fériés, épidémies
 
 ---
 
@@ -132,13 +132,16 @@ holidays = pd.DataFrame({
 
 ```
 src/
-├── model.py          # Fonctions Prophet
-├── data_loader.py    # Préparation des données
-└── metrics.py        # Évaluation des performances
+├── model.py               # Fonctions Prophet (create, train, predict)
+├── data_loader.py         # Préparation des données
+├── enriched_pipeline.py   # Pipeline recommandation de commande & plan d'arrivages
+├── metrics.py             # Évaluation des performances
+├── mlflow_utils.py        # Tracking MLflow partagé (API + notebooks)
+└── visualization.py       # Graphiques
 
 config/
-├── model_params.yaml # Paramètres Prophet
-└── settings.py       # Configuration générale
+├── model_params.yaml      # Paramètres Prophet
+└── settings.py            # Configuration générale
 ```
 
 ### Fonctions principales (`src/model.py`)
@@ -184,6 +187,7 @@ future_predictions = predict_future(model, periods=30)
 │  - Filtre produit       │
 │  - Agrège par jour      │
 │  - Renomme ds/y         │
+│  - Joint les régresseurs│
 └────────┬────────────────┘
          │
          ▼
@@ -196,23 +200,49 @@ future_predictions = predict_future(model, periods=30)
          ▼
 ┌─────────────────────────┐
 │  train_prophet_model()  │
-│  - Configure Prophet    │
-│  - Ajoute régresseurs   │
-│  - Entraîne (~1-2 min)  │
+│  - seasonality_mode:    │
+│    multiplicative       │
+│  - Ajoute 4 régresseurs │
+│  - Ajoute 2 holidays    │
+│  - MCMC ou MAP          │
 └────────┬────────────────┘
          │
          ▼
 ┌─────────────────────────┐
 │  predict() / predict_   │
-│  future()               │
-│  - Génère prédictions   │
+│  future() — 28 jours    │
 │  - Intervalles confiance│
+│    85%                  │
 └────────┬────────────────┘
          │
          ▼
 ┌─────────────────────────┐
 │  calculate_metrics()    │
 │  MAE, MAPE, RMSE, R²    │
+└────────┬────────────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│  build_order_           │
+│  recommendation()       │
+│  - Stock disponible     │
+│  - Stock de sécurité    │
+│  - Qté à commander      │
+└────────┬────────────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│  build_dlc_arrival_     │
+│  schedule()             │
+│  - Plan d'arrivages     │
+│  - Fenêtres DLC         │
+└────────┬────────────────┘
+         │
+         ▼
+┌─────────────────────────┐
+│  log_prediction_run()   │
+│  MLflow : params,       │
+│  métriques, artefacts   │
 └─────────────────────────┘
 ```
 
@@ -228,27 +258,32 @@ default:
   daily_seasonality: false # Pas de pattern intra-journalier
   weekly_seasonality: true # Pattern fort semaine/weekend
   yearly_seasonality: true # Variations saisonnières
-  seasonality_mode: "additive"
+  seasonality_mode: "additive" # Défaut ; les notebooks enrichis utilisent multiplicative
 
   # Flexibilité
   changepoint_prior_scale: 0.05 # Équilibre biais/variance
 
   # Intervalles de confiance
   interval_width: 0.85 # 85% de confiance
+
+  # Inférence
+  mcmc_samples: 0 # 0 = MAP (rapide) ; >0 = MCMC NUTS (précis, lent)
 ```
 
 ### Guide des paramètres
 
-| Paramètre                 | Valeur         | Effet                              |
-| ------------------------- | -------------- | ---------------------------------- |
-| `changepoint_prior_scale` | 0.001          | Tendance très lisse                |
-|                           | **0.05**       | Équilibré (défaut)                 |
-|                           | 0.5            | Très flexible (risque overfitting) |
-| `seasonality_mode`        | **additive**   | Variations constantes              |
-|                           | multiplicative | Variations proportionnelles        |
-| `interval_width`          | 0.80           | Intervalles étroits                |
-|                           | **0.85**       | Standard                           |
-|                           | 0.95           | Intervalles larges                 |
+| Paramètre                 | Valeur             | Effet                                                     |
+| ------------------------- | ------------------ | --------------------------------------------------------- |
+| `changepoint_prior_scale` | 0.001              | Tendance très lisse                                       |
+|                           | **0.05**           | Équilibré (défaut)                                        |
+|                           | 0.5                | Très flexible (risque overfitting)                        |
+| `seasonality_mode`        | additive           | Variations constantes (défaut config)                     |
+|                           | **multiplicative** | Variations proportionnelles (**notebooks enrichis**)      |
+| `interval_width`          | 0.80               | Intervalles étroits                                       |
+|                           | **0.85**           | Standard (**notebooks enrichis**)                         |
+|                           | 0.95               | Intervalles larges                                        |
+| `mcmc_samples`            | **0**              | Inférence MAP — rapide (mono-produit)                     |
+|                           | 300                | MCMC NUTS — intervalles sur coefficients (multi-produits) |
 
 ### Configurations par type de produit
 
@@ -270,39 +305,57 @@ long_dlc:
 
 ### Régresseurs disponibles dans le dataset enrichi
 
-Notre dataset enrichi (85k lignes) contient **7 régresseurs externes** qui améliorent significativement les prédictions :
+Notre dataset enrichi (85k lignes) contient des variables contextuelles. Elles sont utilisées de deux façons différentes dans Prophet :
 
-| Régresseur           | Type    | Description                  | Impact attendu                          |
-| -------------------- | ------- | ---------------------------- | --------------------------------------- |
-| `temperature`        | float   | Température journalière (°C) | Soupes en hiver, salades en été         |
-| `taux_occupation`    | float   | % d'occupation des lits      | Impact direct proportionnel             |
-| `nb_patients`        | int     | Nombre de patients/jour      | Plus de patients = plus de consommation |
-| `epidemie_grippe`    | binaire | Période d'épidémie           | Augmentation consommation               |
-| `vacances_scolaires` | binaire | Période vacances             | Réduction personnel                     |
-| `jour_ferie`         | binaire | Jour férié                   | Menu simplifié                          |
-| `covid_impact`       | binaire | Période COVID                | Perturbation majeure                    |
+**Régresseurs externes** (ajoutés via `add_regressor()`) :
+
+| Régresseur        | Type    | Description                  | Impact attendu                          | `prior_scale` |
+| ----------------- | ------- | ---------------------------- | --------------------------------------- | ------------- |
+| `temperature`     | float   | Température journalière (°C) | Soupes en hiver, salades en été         | 0.5           |
+| `taux_occupation` | float   | % d'occupation des lits      | Impact direct proportionnel             | 1.0           |
+| `nb_patients`     | int     | Nombre de patients/jour      | Plus de patients = plus de consommation | 0.5           |
+| `epidemie_grippe` | binaire | Période d'épidémie de grippe | Augmentation consommation               | 0.5           |
+
+**Holidays** (ajoutés via le DataFrame `holidays`) :
+
+| Colonne      | Description                | Impact attendu       |
+| ------------ | -------------------------- | -------------------- |
+| `jour_ferie` | Jours fériés nationaux     | Menu simplifié       |
+| `covid_19`   | Périodes confinement COVID | Perturbation majeure |
 
 ### Comment les utiliser
 
 ```python
 from src.model import train_prophet_model
 
-# Définir les régresseurs à utiliser
+# Les 4 régresseurs utilisés dans les notebooks enrichis
 regressors = [
     'temperature',
     'taux_occupation',
     'nb_patients',
-    'epidemie_grippe'
+    'epidemie_grippe',
 ]
 
-# Entraîner avec régresseurs
+# Entraîner avec régresseurs (mode multiplicatif, intervalles 85%)
 model = train_prophet_model(
     train_df,
     regressors=regressors,
+    seasonality_mode='multiplicative',
     weekly_seasonality=True,
-    yearly_seasonality=True
+    yearly_seasonality=True,
+    interval_width=0.85,
+    mcmc_samples=0,        # 0 = MAP (rapide), 300 = MCMC NUTS
 )
 ```
+
+### MCMC vs MAP
+
+| Mode             | `mcmc_samples` | Durée estimée      | Avantage                                                      |
+| ---------------- | -------------- | ------------------ | ------------------------------------------------------------- |
+| **MAP** (défaut) | `0`            | ~1-2 min/produit   | Rapide, suffisant pour la plupart des cas                     |
+| **MCMC NUTS**    | `300`          | ~15-30 min/produit | Intervalles de confiance sur les coefficients des régresseurs |
+
+Le notebook `Analyse_Tous_Produits_ENRICHI.ipynb` utilise `MCMC_SAMPLES = 300` pour obtenir des intervalles de confiance précis sur les 40 produits.
 
 ### Amélioration des performances
 
@@ -329,11 +382,11 @@ model = train_prophet_model(
 ### Interprétation du MAPE
 
 ```
-MAPE < 10%  → ✅ Excellent (prédiction très fiable)
-MAPE < 15%  → ✅ Très bon (recommandation automatique possible)
-MAPE < 25%  → ✅ Bon (aide à la décision)
-MAPE < 50%  → ⚠️ Acceptable (utiliser avec précaution)
-MAPE > 50%  → ❌ Insuffisant (revoir le modèle)
+MAPE < 10%  →  Excellent (prédiction très fiable)
+MAPE < 15%  →  Très bon (recommandation automatique possible)
+MAPE < 25%  →  Bon (aide à la décision)
+MAPE < 50%  →  Acceptable (utiliser avec précaution)
+MAPE > 50%  →  Insuffisant (revoir le modèle)
 ```
 
 ### Notre implémentation du MAPE
@@ -408,7 +461,7 @@ print_metrics(metrics)
 
 ---
 
-## 📖 Ressources
+## Ressources
 
 - [Documentation officielle Prophet](https://facebook.github.io/prophet/)
 - [Paper : Forecasting at Scale](https://peerj.com/preprints/3190/)
